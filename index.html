@@ -135,12 +135,12 @@
             CONFIG.globeSegments
         ); 
         const globeMaterial = new THREE.MeshPhongMaterial({ 
-            color: 0x0077be,
-            shininess: 20,        // Slightly increased shininess for better reflections
-            specular: 0x334466,   // Enhanced specular for better light response
-            emissive: 0x003d7a,   // Stronger blue emissive for better glow from within
+            color: 0x005280,      // Darker blue for the base color
+            shininess: 15,        // Reduced shininess for a more muted appearance
+            specular: 0x223344,   // Reduced specular for less bright highlights
+            emissive: 0x002a56,   // Darker emissive glow
             transparent: true,    // Enable transparency
-            opacity: 0.92         // More transparency helps with glow effect
+            opacity: 0.94         // Slightly more opaque for deeper appearance
         });
         const globe = new THREE.Mesh(globeGeometry, globeMaterial);
         globeGroup.add(globe);
@@ -152,10 +152,10 @@
             Math.max(16, Math.floor(CONFIG.globeSegments * 0.5))
         );
         const innerGlowMaterial = new THREE.MeshBasicMaterial({
-            color: 0x0055aa,
+            color: 0x003466,      // Darker blue for inner glow
             transparent: true,
-            opacity: 0.15,
-            side: THREE.BackSide // Only show the inside
+            opacity: 0.13,        // Slightly less opacity
+            side: THREE.BackSide  // Only show the inside
         });
         const innerGlow = new THREE.Mesh(innerGlowGeometry, innerGlowMaterial);
         globeGroup.add(innerGlow);
@@ -251,10 +251,10 @@
             
             // Create a material for all dots with better visual quality/performance balance
             const dotMaterial = new THREE.MeshBasicMaterial({ 
-                color: 0xddddff, // Slight blue tint to match the globe better
+                color: 0xbbeeff, // Light blue tint that contrasts with darker globe
                 side: THREE.DoubleSide, // Make sure circles are visible from both sides
                 transparent: true,
-                opacity: 0.9, // More opaque for better visibility with smaller size
+                opacity: 0.95, // More opaque for better visibility against darker globe
                 depthTest: true, // Enable depth testing for proper occlusion
                 depthWrite: true, // Ensure dots write to depth buffer
                 blending: THREE.NormalBlending // Use normal blending for better performance
@@ -520,7 +520,7 @@
             
             // Create the tube material with the gradient texture and improved settings
             const tubeMaterial = new THREE.MeshBasicMaterial({
-                opacity: 0.85, // Slightly reduced opacity
+                opacity: 0.9, // Increased opacity for better contrast against darker globe
                 transparent: true,
                 depthWrite: false, // Disable depth writing for better blending
                 blending: THREE.AdditiveBlending, // Use additive blending for a glowing effect
