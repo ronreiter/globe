@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Globe with Three.js</title>
+    <title>3D Globe Visualization</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; cursor: grab; }
@@ -61,24 +61,72 @@
             CONFIG.skipFrames = 1;
         }
         
+        // Auto-detect performance capabilities and adjust settings if needed
+        // This helps ensure smooth performance on all devices without manual toggling
+        function autoDetectPerformance() {
+            // Only run auto-detection if high performance mode isn't explicitly set
+            if (CONFIG.useHighPerformanceMode === false) {
+                // Check for mobile devices which typically have less GPU power
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                
+                // Check if device has a lower resolution screen (proxy for lower-end device)
+                const hasLowResScreen = window.screen.width * window.screen.height < 1920 * 1080;
+                
+                // Check for lower memory (another proxy for capability)
+                const hasLowMemory = navigator.deviceMemory !== undefined && navigator.deviceMemory < 4;
+                
+                // Apply medium performance adjustments if device seems limited
+                if (isMobile || hasLowResScreen || hasLowMemory) {
+                    console.log("Auto-detected limited device capabilities, applying performance optimizations");
+                    
+                    // Reduce complexity but not as drastically as high performance mode
+                    CONFIG.globeSegments = Math.max(32, CONFIG.globeSegments * 0.7);
+                    CONFIG.numPoints = Math.max(10000, CONFIG.numPoints * 0.7);
+                    CONFIG.maxConcurrentArcs = Math.max(25, CONFIG.maxConcurrentArcs * 0.8);
+                    CONFIG.arcPointsCount = Math.max(25, CONFIG.arcPointsCount * 0.8);
+                    CONFIG.skipFrames = 1; // Skip every other frame
+                    
+                    // Apply pixel ratio limitation
+                    if (window.devicePixelRatio > 2) {
+                        renderer.setPixelRatio(1.5); // Cap pixel ratio for high-DPI screens
+                    }
+                }
+            }
+        }
+        
+        // Run auto-detection
+        autoDetectPerformance();
+        
         // Set up the scene, camera, and renderer
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000204); // Darker blue-black background for better contrast
         
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // Create renderer with performance optimizations
         const renderer = new THREE.WebGLRenderer({ 
             antialias: !CONFIG.useHighPerformanceMode, // Disable antialiasing in high performance mode
-            powerPreference: "high-performance" 
+            powerPreference: "high-performance",
+            precision: "mediump" // Use medium precision for shaders - major performance boost with minimal visual impact
         });
+        
+        // Optimize renderer for better performance
+        renderer.sortObjects = false; // Disable object sorting since depth is relatively straightforward in this scene
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(CONFIG.useHighPerformanceMode ? 1 : window.devicePixelRatio); // Use lower pixel ratio in high performance mode
+        
+        // Set appropriate pixel ratio for performance without sacrificing quality too much
+        const optimizedPixelRatio = CONFIG.useHighPerformanceMode ? 1 : 
+                                   (window.devicePixelRatio > 2 ? 1.5 : window.devicePixelRatio);
+        renderer.setPixelRatio(optimizedPixelRatio);
+        
+        // Additional optimizations
+        renderer.shadowMap.enabled = false; // Disable shadow maps as we don't use them
         document.body.appendChild(renderer.domElement);
         
         // Create a single parent group for the entire globe and all its elements
         const globeGroup = new THREE.Group();
         scene.add(globeGroup);
         
-        // Create a blue globe with better material for lighting
+        // Create a blue globe with enhanced material for better glow and performance
         const radius = CONFIG.globeRadius;  // Use configurable radius
         const globeGeometry = new THREE.SphereGeometry(
             radius, 
@@ -87,36 +135,61 @@
         ); 
         const globeMaterial = new THREE.MeshPhongMaterial({ 
             color: 0x0077be,
-            shininess: 15,        // Reduced shininess to avoid shiny dots
-            specular: 0x222233,   // Very subtle specular highlights
-            emissive: 0x002244,   // Subtle blue glow
+            shininess: 20,        // Slightly increased shininess for better reflections
+            specular: 0x334466,   // Enhanced specular for better light response
+            emissive: 0x003d7a,   // Stronger blue emissive for better glow from within
+            transparent: true,    // Enable transparency
+            opacity: 0.92         // More transparency helps with glow effect
         });
         const globe = new THREE.Mesh(globeGeometry, globeMaterial);
         globeGroup.add(globe);
         
-        // No separate atmosphere - we'll use lighting for glow effects
+        // Add a slightly larger inner glow sphere for enhanced glow effect
+        const innerGlowGeometry = new THREE.SphereGeometry(
+            radius * 1.01, 
+            Math.max(16, Math.floor(CONFIG.globeSegments * 0.5)), // Lower resolution is fine for glow
+            Math.max(16, Math.floor(CONFIG.globeSegments * 0.5))
+        );
+        const innerGlowMaterial = new THREE.MeshBasicMaterial({
+            color: 0x0055aa,
+            transparent: true,
+            opacity: 0.15,
+            side: THREE.BackSide // Only show the inside
+        });
+        const innerGlow = new THREE.Mesh(innerGlowGeometry, innerGlowMaterial);
+        globeGroup.add(innerGlow);
         
         // Enhanced lighting for better glow and highlights
         const ambientLight = new THREE.AmbientLight(0x333344, 0.5); // Subtle bluish ambient light
         scene.add(ambientLight);
         
         // Main directional light (sun-like) - reduced intensity
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
         directionalLight.position.set(8, 8, 8);
         scene.add(directionalLight);
         
-        // Add stronger blue backlight for glow effect
-        const backLight = new THREE.PointLight(0x0055ff, 2.0, 50);
-        backLight.position.set(-18, 5, -18);
+        // Enhanced blue backlight for stronger glow effect - increased intensity
+        const backLight = new THREE.PointLight(0x0066ff, 3.5, 65);
+        backLight.position.set(-20, 8, -20);
         scene.add(backLight);
         
-        // Add a blue rim light from below for additional glow
-        const rimLight = new THREE.PointLight(0x0044ff, 1.0, 50);
+        // Second backlight with different color for more dramatic effect
+        const secondBackLight = new THREE.PointLight(0x0022aa, 2.2, 60);
+        secondBackLight.position.set(-18, -5, -15);
+        scene.add(secondBackLight);
+        
+        // Third backlight with cyan tint for edge highlights
+        const thirdBackLight = new THREE.PointLight(0x00aaff, 1.8, 55);
+        thirdBackLight.position.set(-15, 12, -18);
+        scene.add(thirdBackLight);
+        
+        // Blue rim light from below for additional glow - more intense
+        const rimLight = new THREE.PointLight(0x0044ff, 1.8, 55);
         rimLight.position.set(-5, -15, -10);
         scene.add(rimLight);
         
-        // Add a soft white fill light for general illumination
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+        // Soft white fill light for general illumination - reduced intensity to emphasize glow
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.25);
         fillLight.position.set(0, 15, 15);
         scene.add(fillLight);
         
@@ -131,10 +204,26 @@
         // Create land dots based on actual land/sea distribution
         function createLandPoints() {
             console.time('landPoints');
-            // Using the landmasses object for land detection now
-
+            
+            // Use instance rendering instead of individual meshes for massive performance improvement
+            // This allows us to render thousands of dots with minimal performance impact
+            
             // Resolution settings - use configurable options
             const dotSize = CONFIG.dotSize; // Use configurable dot size
+            
+            // Create a single geometry for all dots
+            const dotGeometry = new THREE.CircleGeometry(dotSize, CONFIG.dotSegments);
+            
+            // Create a material for all dots with better visual quality/performance balance
+            const dotMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xddddff, // Slight blue tint to match the globe better
+                side: THREE.DoubleSide, // Make sure circles are visible from both sides
+                transparent: true,
+                opacity: 0.9, // More opaque for better visibility with smaller size
+                depthTest: true, // Enable depth testing for proper occlusion
+                depthWrite: true, // Ensure dots write to depth buffer
+                blending: THREE.NormalBlending // Use normal blending for better performance
+            });
 
             // High-resolution world map bitmap (simplified representation of Earth's land masses)
             // Each row represents a latitude band from 90°N to 90°S
@@ -156,6 +245,11 @@
             // This avoids concentration at the poles
             const numPoints = CONFIG.numPoints; // Use configurable number of points
             
+            // First pass: count how many land points we'll have
+            const landPositions = [];
+            const landNormals = [];
+            const landData = [];
+            
             for (let i = 0; i < numPoints; i++) {
                 // Fibonacci lattice formula for even distribution on a sphere
                 const phi = Math.acos(1 - 2 * (i + 0.5) / numPoints);
@@ -167,47 +261,96 @@
                 
                 // Only place a dot if the map indicates land
                 if (isLand(lat, lon)) {
-                        // Convert lat/lon to 3D coordinates
-                        // Note the negative sign on x to correctly orient the globe
-                        const phi = (90 - lat) * Math.PI / 180;
-                        const theta = (lon + 180) * Math.PI / 180;
-                        
-                        // Lift the points slightly off the globe's surface for better visibility
-                        const pointRadius = radius * 1.005; // 0.5% larger than globe radius
-                        const x = -pointRadius * Math.sin(phi) * Math.cos(theta);
-                        const y = pointRadius * Math.cos(phi);
-                        const z = pointRadius * Math.sin(phi) * Math.sin(theta);
-                        
-                        // Use flat circles for performance with higher dot count
-                        const dotGeometry = new THREE.CircleGeometry(dotSize, CONFIG.dotSegments); // Use configurable segment count
-                        const dotMaterial = new THREE.MeshBasicMaterial({ 
-                            color: 0xddddff, // Slight blue tint to match the globe better
-                            side: THREE.DoubleSide, // Make sure circles are visible from both sides
-                            transparent: true,
-                            opacity: 0.9, // More opaque for better visibility with smaller size
-                            // Add depth test for better rendering with higher dot density
-                            depthTest: true,
-                            depthWrite: true
-                        });
-                        const dot = new THREE.Mesh(dotGeometry, dotMaterial);
-                        
-                        // Position the dot at the surface of the globe
-                        dot.position.set(x, y, z);
-                        
-                        // Make the circle face outward from center of globe
-                        const lookAt = new THREE.Vector3(0, 0, 0);
-                        dot.lookAt(lookAt);
-                        dot.userData = { 
-                            originalPosition: new THREE.Vector3(x, y, z),
-                            hovering: false,
-                            phi: phi,
-                            theta: theta
-                        };
-                        
-                        landDots.add(dot);
-                        landPoints.push(dot);
+                    // Convert lat/lon to 3D coordinates
+                    // Note the negative sign on x to correctly orient the globe
+                    const phi = (90 - lat) * Math.PI / 180;
+                    const theta = (lon + 180) * Math.PI / 180;
+                    
+                    // Lift the points slightly off the globe's surface for better visibility
+                    const pointRadius = radius * 1.005; // 0.5% larger than globe radius
+                    const x = -pointRadius * Math.sin(phi) * Math.cos(theta);
+                    const y = pointRadius * Math.cos(phi);
+                    const z = pointRadius * Math.sin(phi) * Math.sin(theta);
+                    
+                    // Store position and normal for instancing
+                    landPositions.push(x, y, z);
+                    
+                    // Normal is just the normalized position for a sphere
+                    const normal = new THREE.Vector3(x, y, z).normalize();
+                    landNormals.push(normal.x, normal.y, normal.z);
+                    
+                    // Store additional data for hover effects
+                    landData.push({
+                        originalPosition: new THREE.Vector3(x, y, z),
+                        hovering: false,
+                        phi: phi,
+                        theta: theta
+                    });
                 }
             }
+            
+            // Now we know how many dots we need
+            const instanceCount = landPositions.length / 3;
+            console.log(`Creating ${instanceCount} land dots`);
+            
+            if (instanceCount > 0) {
+                // Create instanced mesh for much better performance
+                const instancedDots = new THREE.InstancedMesh(dotGeometry, dotMaterial, instanceCount);
+                instancedDots.count = instanceCount;
+                
+                // Create matrix and quaternion for positioning instances
+                const matrix = new THREE.Matrix4();
+                const quaternion = new THREE.Quaternion();
+                const position = new THREE.Vector3();
+                const scale = new THREE.Vector3(1, 1, 1);
+                
+                // Set instance matrices
+                for (let i = 0; i < instanceCount; i++) {
+                    // Get position
+                    position.set(
+                        landPositions[i * 3],
+                        landPositions[i * 3 + 1],
+                        landPositions[i * 3 + 2]
+                    );
+                    
+                    // Calculate rotation to face outward
+                    const normal = new THREE.Vector3(
+                        landNormals[i * 3],
+                        landNormals[i * 3 + 1],
+                        landNormals[i * 3 + 2]
+                    );
+                    
+                    // Use lookAt to orient the dot correctly
+                    const lookAt = new THREE.Vector3().copy(position).add(normal);
+                    const up = new THREE.Vector3(0, 1, 0);
+                    const rotationMatrix = new THREE.Matrix4().lookAt(position, lookAt, up);
+                    quaternion.setFromRotationMatrix(rotationMatrix);
+                    
+                    // Create transformation matrix
+                    matrix.compose(position, quaternion, scale);
+                    instancedDots.setMatrixAt(i, matrix);
+                    
+                    // Store data for hover (we'll handle this differently now)
+                    const dot = {
+                        index: i,
+                        position: position.clone(),
+                        originalPosition: position.clone(),
+                        userData: landData[i]
+                    };
+                    landPoints.push(dot);
+                }
+                
+                // Update the instance matrices
+                instancedDots.instanceMatrix.needsUpdate = true;
+                
+                // Add to scene
+                landDots.add(instancedDots);
+                landDots.userData.instancedDots = instancedDots;
+            }
+            
+            // Store the positions and normals arrays for hover effects
+            landDots.userData.positions = landPositions;
+            landDots.userData.normals = landNormals;
         }
         
         createLandPoints();
@@ -297,11 +440,14 @@
                 false
             ); // Use configurable settings
             
-            // Create the tube material with flat color (no lighting/gradient effects)
+            // Create the tube material with enhanced appearance and performance optimizations
             const tubeMaterial = new THREE.MeshBasicMaterial({
-                color: 0xc0d8ff, // Slightly softer blue-white color for thinner arcs
-                opacity: 0.85,
-                transparent: true
+                color: 0xc0eaff, // Brighter blue-white color for better visibility
+                opacity: 0.88,
+                transparent: true,
+                depthWrite: false, // Disable depth writing for better blending with transparent objects
+                blending: THREE.AdditiveBlending, // Use additive blending for a glowing effect
+                toneMapped: false // Disable tone mapping for brighter appearance
             });
             
             // Create the mesh and add to globe group
@@ -326,10 +472,13 @@
             // Create a primary circle that will expand outward
             const circleGeometry = new THREE.CircleGeometry(0.05, 16); // Smaller initial size
             const circleMaterial = new THREE.MeshBasicMaterial({
-                color: 0x88ccff, // Light blue color for impact
+                color: 0x88eeff, // Brighter cyan-blue color for more vibrant impact
                 side: THREE.DoubleSide,
                 transparent: true,
-                opacity: 0.8
+                opacity: 0.9,
+                depthWrite: false, // Disable depth writing for better blending
+                blending: THREE.AdditiveBlending, // Use additive blending for glow effect
+                toneMapped: false // Disable tone mapping for brighter appearance
             });
             
             const circle = new THREE.Mesh(circleGeometry, circleMaterial);
@@ -349,7 +498,10 @@
                 color: 0xffffff, // White color for outer circle
                 side: THREE.DoubleSide,
                 transparent: true,
-                opacity: 0.6
+                opacity: 0.7,
+                depthWrite: false, // Disable depth writing for better blending
+                blending: THREE.AdditiveBlending, // Use additive blending for glow effect
+                toneMapped: false // Disable tone mapping for brighter appearance
             });
             
             const outerCircle = new THREE.Mesh(outerCircleGeometry, outerCircleMaterial);
@@ -538,15 +690,24 @@
                 }
             }
             
-            // No atmosphere updates needed since we're using lighting for glow
+            // Atmospheric glow is now handled by inner glow sphere and lighting
             
-            // Add subtle pulsing to the back lights for glow effect
-            // Only update every few frames for better performance
-            if (Math.floor(seconds * 15) % 3 === 0) {
+            // Enhanced pulsing to the lights for dramatic glow effect
+            // Optimize light updates by using a longer interval for subtle effects
+            // This significantly reduces performance impact of light calculations
+            if (Math.floor(seconds * 10) % 4 === 0) {
                 const elapsedTime = seconds % 10;
-                const pulseIntensity = Math.sin(elapsedTime * Math.PI / 5) * 0.05 + 1.0;
-                backLight.intensity = 2.0 * pulseIntensity;
-                rimLight.intensity = 1.0 * pulseIntensity;
+                const primaryPulse = Math.sin(elapsedTime * Math.PI / 5) * 0.07 + 1.0;
+                const secondaryPulse = Math.sin((elapsedTime + 2.5) * Math.PI / 5) * 0.05 + 1.0; // Out of phase
+                
+                // Pulse each light with different intensities and phases for more complex effect
+                backLight.intensity = 3.5 * primaryPulse;
+                rimLight.intensity = 1.8 * secondaryPulse;
+                secondBackLight.intensity = 2.2 * secondaryPulse;
+                thirdBackLight.intensity = 1.8 * primaryPulse;
+                
+                // Also pulse the inner glow opacity for enhanced effect
+                innerGlowMaterial.opacity = 0.15 * (primaryPulse * 0.8 + 0.6);
             }
             
             // Add random arcs more aggressively to ensure continuous flow
@@ -800,34 +961,9 @@
                 }
             } // Close the frame skipping condition
             
-            // Hover effect on dots - can skip some frames for better performance
-            if (Math.floor(seconds * 30) % Math.max(1, Math.floor(CONFIG.skipFrames / 2 + 1)) === 0) {
-                raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObjects(landDots.children);
+            // Disable hover effects for better performance - these don't work well with instanced meshes
+            // and are a major source of performance issues when we have thousands of points
             
-            // Reset all dots first with smoother transition
-            landDots.children.forEach(dot => {
-                if (!intersects.find(intersect => intersect.object === dot) && dot.userData.hovering) {
-                    // Return dot to original position with smoother transition
-                    dot.userData.hovering = false;
-                    const origPos = dot.userData.originalPosition;
-                    dot.position.lerp(origPos, 0.05); // Slower transition (0.05 instead of 0.1)
-                }
-            });
-            
-            // Handle hover
-            if (intersects.length > 0) {
-                const dot = intersects[0].object;
-                dot.userData.hovering = true;
-                
-                // Move dot away from center with smoother transition
-                const direction = dot.position.clone().normalize();
-                const targetPosition = dot.userData.originalPosition.clone().add(
-                    direction.multiplyScalar(0.3) // Less exaggerated movement (0.3 instead of 0.4)
-                );
-                dot.position.lerp(targetPosition, 0.05); // Slower transition (0.05 instead of 0.1)
-                }
-            } // Close the hover effect condition
             
             renderer.render(scene, camera);
         }
