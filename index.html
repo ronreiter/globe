@@ -23,7 +23,7 @@
             numPoints: 25000,                 // Maximum points to generate (3000-25000, lower for better performance)
             dotSize: 0.06,                    // Size of land dots (0.05-0.1)
             dotSegments: 6,                   // Land dot geometry segments (4-8, lower for better performance)
-            hoverEffect: 0.3,                 // Strength of dot hover effect (0.1-0.5)
+            hoverEffect: 0.15,                // Strength of dot hover effect (0.1-0.5)
             
             // Arcs
             maxConcurrentArcs: 40,            // Maximum concurrent arcs (6-40, lower for better performance)
@@ -53,7 +53,7 @@
             CONFIG.numPoints = 12000;       // Increased for better land coverage while maintaining performance
             CONFIG.dotSegments = 4;
             CONFIG.dotSize = 0.07;          // Slightly larger dots for better visibility with fewer points
-            CONFIG.hoverEffect = 0.15;      // Reduce hover effect for better performance
+            CONFIG.hoverEffect = 0.08;      // Reduce hover effect for better performance
             CONFIG.maxConcurrentArcs = 25;  // Still allow many arcs but reduced from normal mode
             CONFIG.arcFrequency = 0.3;      // Slightly less frequent arc creation for performance
             CONFIG.arcTubeSegments = 12;    // Increased for smoother arcs even in performance mode
@@ -974,11 +974,23 @@
                 if (globeIntersects.length > 0) {
                     // Get the intersection point on the globe in local coordinates
                     // This is critical to account for the globe's rotation
-                    const intersectionPoint = globeIntersects[0].point.clone();
+                    const currentIntersectionPoint = globeIntersects[0].point.clone();
                     
                     // Convert world coordinates to globe's local coordinates
                     // This accounts for the globe rotation
-                    globeGroup.worldToLocal(intersectionPoint);
+                    globeGroup.worldToLocal(currentIntersectionPoint);
+                    
+                    // Store a static reference for the intersection point
+                    if (!window.lastIntersectionPoint) {
+                        window.lastIntersectionPoint = currentIntersectionPoint.clone();
+                    }
+                    
+                    // Smoothly transition between intersection points for less jerky movement
+                    // Linear interpolation with small step for smooth transition
+                    window.lastIntersectionPoint.lerp(currentIntersectionPoint, 0.1);
+                    
+                    // Use the smoothed intersection point
+                    const intersectionPoint = window.lastIntersectionPoint;
                     
                     // Reference to the instanced dots
                     const instancedDots = landDots.userData.instancedDots;
@@ -1007,16 +1019,21 @@
                             
                             // Convert distance to an effect factor
                             // Closer points should rise more, with a smooth falloff
-                            const maxDistance = radius * 0.8; // Max distance for any effect
+                            const maxDistance = radius * 0.6; // Reduced max distance for a more focused effect
                             
                             if (distance < maxDistance) {
-                                // Calculate hover amount - inverse of distance
-                                const hoverFactor = Math.pow(1 - distance / maxDistance, 3) * CONFIG.hoverEffect;
+                                // Calculate a smoother hover amount with bell-curve like falloff
+                                // Use a combination of sine and exponential functions for smoother effect
+                                const normalizedDist = distance / maxDistance;
+                                
+                                // Create a bell-curve effect that peaks at the center and falls off smoothly
+                                const bellCurve = Math.cos(normalizedDist * Math.PI * 0.5);
+                                const smoothFactor = Math.pow(bellCurve, 2) * CONFIG.hoverEffect;
                                 
                                 // Apply hover effect - move dot outward from globe center
                                 const direction = originalPos.clone().normalize();
                                 const newPosition = originalPos.clone().add(
-                                    direction.multiplyScalar(radius * hoverFactor)
+                                    direction.multiplyScalar(radius * smoothFactor)
                                 );
                                 
                                 // Update matrix for this instance
