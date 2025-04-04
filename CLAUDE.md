@@ -167,3 +167,18 @@ The lighting setup can be modified by changing the light intensities and positio
 - Arcs use cubic Bezier curves with tension control for smooth paths
 - Impact effects use expanding circles with easing functions for smooth animations
 - Performance optimization includes geometry reuse, frame skipping, and dynamic level-of-detail
+
+## Code Structure
+
+- The entire visualization is contained in a single HTML file with embedded JavaScript
+- Three.js handles all the 3D rendering and WebGL abstractions
+- The code follows a modular approach with separate functions for:
+  - Scene setup and initialization
+  - Globe creation and surface texturing
+  - Land point generation and distribution
+  - Arc animation and lifecycle management
+  - Impact effect rendering
+  - Animation loop and frame updates
+- Reusable geometries and materials are created once and shared
+- Animation states are tracked using arrays of objects with timestamps
+- A requestAnimationFrame loop drives all animations with delta-time calculations
