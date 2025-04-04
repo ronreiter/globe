@@ -1003,10 +1003,9 @@
                         const position = new THREE.Vector3();
                         const scale = new THREE.Vector3(1, 1, 1);
                         
-                        // Update all points but optimize for performance
-                        // Loop through all land points but skip some for performance
-                        // This gives a better effect than random selection while maintaining performance
-                        const skipPoints = Math.max(1, Math.floor(landPoints.length / 3000)); 
+                        // Process all points for a consistent effect
+                        // In high performance mode, we can still skip some points
+                        const skipPoints = CONFIG.useHighPerformanceMode ? 2 : 1;
                         
                         for (let i = 0; i < landPoints.length; i += skipPoints) {
                             const dot = landPoints[i];
