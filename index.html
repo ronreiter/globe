@@ -20,7 +20,7 @@
             globeSegments: 64,                // Resolution of the globe (32-128, lower for better performance)
             
             // Land points
-            numPoints: 18000,                 // Maximum points to generate (3000-25000, lower for better performance)
+            numPoints: 25000,                 // Maximum points to generate (3000-25000, lower for better performance)
             dotSize: 0.06,                    // Size of land dots (0.05-0.1)
             dotSegments: 6,                   // Land dot geometry segments (4-8, lower for better performance)
             
@@ -28,10 +28,10 @@
             maxConcurrentArcs: 40,            // Maximum concurrent arcs (6-40, lower for better performance)
             arcFrequency: 0.2,                // How often new arcs appear (higher = less frequent)
             arcTimingVariation: 0.15,         // Randomness in arc timing (0-1, higher = more random)
-            arcTubeSegments: 12,              // Maximum tube segments for arcs (6-16, lower for better performance) 
-            arcRadialSegments: 4,             // Radial segments for arc tubes (3-8, lower for better performance)
+            arcTubeSegments: 18,              // Maximum tube segments for arcs (6-18, lower for better performance) 
+            arcRadialSegments: 6,             // Radial segments for arc tubes (3-8, lower for better performance)
             arcThickness: 0.038,              // Thickness of arcs (0.03-0.1)
-            arcPointsCount: 35,               // Number of points in arc path (20-40, lower for better performance)
+            arcPointsCount: 45,               // Number of points in arc path (20-50, lower for better performance)
             
             // Animation and behavior
             rotationSpeed: 0.002,             // Speed of auto-rotation (0.001-0.003)
@@ -49,15 +49,15 @@
         // Enable high performance mode if needed
         if (CONFIG.useHighPerformanceMode) {
             CONFIG.globeSegments = 32;
-            CONFIG.numPoints = 8000;        // Increased from 4000 for better land coverage
+            CONFIG.numPoints = 12000;       // Increased for better land coverage while maintaining performance
             CONFIG.dotSegments = 4;
             CONFIG.dotSize = 0.07;          // Slightly larger dots for better visibility with fewer points
             CONFIG.maxConcurrentArcs = 25;  // Still allow many arcs but reduced from normal mode
             CONFIG.arcFrequency = 0.3;      // Slightly less frequent arc creation for performance
-            CONFIG.arcTubeSegments = 8;
+            CONFIG.arcTubeSegments = 12;    // Increased for smoother arcs even in performance mode
             CONFIG.arcThickness = 0.04;     // Slightly thicker for visibility in performance mode
-            CONFIG.arcRadialSegments = 3;
-            CONFIG.arcPointsCount = 25;
+            CONFIG.arcRadialSegments = 4;   // Increased for smoother arc cross-section
+            CONFIG.arcPointsCount = 32;     // Increased for smoother arc paths
             CONFIG.skipFrames = 1;
         }
         
@@ -81,7 +81,7 @@
                     
                     // Reduce complexity but not as drastically as high performance mode
                     CONFIG.globeSegments = Math.max(32, CONFIG.globeSegments * 0.7);
-                    CONFIG.numPoints = Math.max(10000, CONFIG.numPoints * 0.7);
+                    CONFIG.numPoints = Math.max(15000, CONFIG.numPoints * 0.7);
                     CONFIG.maxConcurrentArcs = Math.max(25, CONFIG.maxConcurrentArcs * 0.8);
                     CONFIG.arcPointsCount = Math.max(25, CONFIG.arcPointsCount * 0.8);
                     CONFIG.skipFrames = 1; // Skip every other frame
@@ -104,7 +104,7 @@
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         // Create renderer with performance optimizations
         const renderer = new THREE.WebGLRenderer({ 
-            antialias: !CONFIG.useHighPerformanceMode, // Disable antialiasing in high performance mode
+            antialias: CONFIG.useHighPerformanceMode, // Disable antialiasing in high performance mode
             powerPreference: "high-performance",
             precision: "mediump" // Use medium precision for shaders - major performance boost with minimal visual impact
         });
@@ -370,7 +370,7 @@
             
             // Make the arc height relative to distance but ensure it touches the globe
             // Height of the arc depends on distance but is more rounded
-            midPoint.normalize().multiplyScalar(radius + distance * 0.95); // Higher, more rounded arcs
+            midPoint.normalize().multiplyScalar(radius + distance * 1.2); // Higher, more rounded arcs
             
             // Slightly adjust start and end points to ensure arcs touch the globe
             const adjustStartPos = startPos.clone().normalize().multiplyScalar(radius * 0.997);
@@ -407,8 +407,8 @@
                 } else {
                     // Use cubic Bezier curve for smoother arcs
                     // Create two control points for better rounding
-                    const cp1 = new THREE.Vector3().lerpVectors(adjustStartPos, midPoint, 0.4);
-                    const cp2 = new THREE.Vector3().lerpVectors(midPoint, adjustEndPos, 0.6);
+                    const cp1 = new THREE.Vector3().lerpVectors(adjustStartPos, midPoint, 0.3);
+                    const cp2 = new THREE.Vector3().lerpVectors(midPoint, adjustEndPos, 0.7);
                     
                     // Cubic Bezier formula
                     const u = 1 - t;
@@ -755,15 +755,15 @@
                         // Create new tube geometry with current points
                         const tubePath = new THREE.CatmullRomCurve3(currentPoints);
                         
-                        // Apply tension for smoother curves
-                        tubePath.tension = 0.5;
+                        // Apply lower tension for smoother, rounder curves during growth
+                        tubePath.tension = 0.4;
                         
                         // Calculate dynamic segments for better quality during growth
                         const dynamicSegments = Math.max(
-                            3, 
+                            5, 
                             Math.min(
                                 CONFIG.arcTubeSegments, 
-                                Math.ceil(pointCount * 0.7) // Scale segments with curve length
+                                Math.ceil(pointCount * 0.8) // Scale segments with curve length for smoother curves
                             )
                         );
                         
@@ -828,15 +828,15 @@
                         // Create new tube geometry with retreating points
                         const tubePath = new THREE.CatmullRomCurve3(currentPoints);
                         
-                        // Apply tension for smoother curves during retreat
-                        tubePath.tension = 0.5;
+                        // Apply lower tension for smoother, rounder curves during retreat
+                        tubePath.tension = 0.4;
                         
                         // Use higher segment count for smoother retreating appearance
                         const dynamicSegments = Math.max(
-                            3, 
+                            5, 
                             Math.min(
                                 CONFIG.arcTubeSegments, 
-                                Math.ceil(pointCount * 0.8) // Higher scaling for retreat
+                                Math.ceil(pointCount * 0.9) // Higher scaling for retreat for smoother curves
                             )
                         );
                         
