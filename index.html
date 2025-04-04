@@ -22,6 +22,18 @@
             atmosphereOpacity: 0.1,           // Opacity of atmosphere (0.1-0.5)
             atmosphereGlow: 1.0,              // Intensity of atmosphere glow effect (1.0-3.0)
             
+            // Arc color palette (in hex format)
+            arcColors: [
+                0xFA3E48, // Red
+                0xFDCA57, // Yellow
+                0x95CFFA, // Light Blue
+                0xAC7DE4, // Purple
+                0xEF445D, // Pink
+                0xB75ED1, // Dark Purple
+                0xFD9651, // Orange
+                0x90E0FF  // Sky Blue
+            ],
+            
             // Land points
             numPoints: 25000,                 // Maximum points to generate (3000-25000, lower for better performance)
             dotSize: 0.06,                    // Size of land dots (0.05-0.1)
@@ -463,14 +475,44 @@
                 false
             ); // Use configurable settings
             
-            // Create the tube material with enhanced appearance and performance optimizations
+            // Randomly select two colors from the color palette for the gradient
+            const colorIndex1 = Math.floor(Math.random() * CONFIG.arcColors.length);
+            let colorIndex2 = Math.floor(Math.random() * CONFIG.arcColors.length);
+            // Make sure we pick two different colors
+            while (colorIndex2 === colorIndex1) {
+                colorIndex2 = Math.floor(Math.random() * CONFIG.arcColors.length);
+            }
+            
+            const startColor = new THREE.Color(CONFIG.arcColors[colorIndex1]);
+            const endColor = new THREE.Color(CONFIG.arcColors[colorIndex2]);
+            
+            // Use a gradient texture for the arc color
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 1;
+            const context = canvas.getContext('2d');
+            
+            // Create a linear gradient
+            const gradient = context.createLinearGradient(0, 0, canvas.width, 0);
+            gradient.addColorStop(0, '#' + startColor.getHexString());
+            gradient.addColorStop(1, '#' + endColor.getHexString());
+            
+            // Fill the canvas with the gradient
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Create a texture from the canvas
+            const gradientTexture = new THREE.CanvasTexture(canvas);
+            gradientTexture.needsUpdate = true;
+            
+            // Create the tube material with the gradient texture
             const tubeMaterial = new THREE.MeshBasicMaterial({
-                color: 0xc0eaff, // Brighter blue-white color for better visibility
-                opacity: 0.88,
+                opacity: 0.9,
                 transparent: true,
-                depthWrite: false, // Disable depth writing for better blending with transparent objects
+                depthWrite: false, // Disable depth writing for better blending
                 blending: THREE.AdditiveBlending, // Use additive blending for a glowing effect
-                toneMapped: false // Disable tone mapping for brighter appearance
+                toneMapped: false, // Disable tone mapping for brighter appearance
+                map: gradientTexture // Apply the gradient texture
             });
             
             // Create the mesh and add to globe group
@@ -486,16 +528,21 @@
                 maxLife: CONFIG.arcRetreatDuration + Math.random() * 0.8, // Configurable retreat time
                 age: 0,
                 destinationPoint: endPos.clone(), // Store the destination point for impact effect
-                impactCreated: false // Flag to track if impact effect has been created
+                impactCreated: false, // Flag to track if impact effect has been created
+                startColor: startColor, // Store the start color for reference
+                endColor: endColor // Store the end color for impact effect
             };
         }
         
         // Create explosion effect at arc destinations
-        function createImpactEffect(position) {
+        function createImpactEffect(position, color) {
+            // Use the provided color or default to cyan if no color is passed
+            const impactColor = color || new THREE.Color(0x88eeff);
+            
             // Create a primary circle that will expand outward
             const circleGeometry = new THREE.CircleGeometry(0.05, 16); // Smaller initial size
             const circleMaterial = new THREE.MeshBasicMaterial({
-                color: 0x88eeff, // Brighter cyan-blue color for more vibrant impact
+                color: impactColor, // Use the arc's end color
                 side: THREE.DoubleSide,
                 transparent: true,
                 opacity: 0.9,
@@ -515,10 +562,14 @@
             // Add to globe group
             globeGroup.add(circle);
             
-            // Create a secondary outer circle with different color
+            // Create a secondary outer circle with a lighter version of the impact color
             const outerCircleGeometry = new THREE.CircleGeometry(0.07, 16); // Smaller initial size
+            
+            // Create a lighter version of the impact color for the outer circle
+            const lightenedColor = impactColor.clone().lerp(new THREE.Color(0xffffff), 0.6);
+            
             const outerCircleMaterial = new THREE.MeshBasicMaterial({
-                color: 0xffffff, // White color for outer circle
+                color: lightenedColor, // Lighter version of impact color
                 side: THREE.DoubleSide,
                 transparent: true,
                 opacity: 0.7,
@@ -796,8 +847,8 @@
                     
                     // If we've reached 90% of the growth and haven't created an impact effect yet
                     if (growthProgress >= 0.9 && !arc.impactCreated) {
-                        // Create impact effect at destination
-                        impactEffects.push(createImpactEffect(arc.destinationPoint));
+                        // Create impact effect at destination with the arc's end color
+                        impactEffects.push(createImpactEffect(arc.destinationPoint, arc.endColor));
                         arc.impactCreated = true; // Mark that we've created the impact
                     }
                     
