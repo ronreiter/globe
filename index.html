@@ -972,8 +972,13 @@
                 const globeIntersects = raycaster.intersectObject(globe);
                 
                 if (globeIntersects.length > 0) {
-                    // Get the intersection point on the globe
-                    const intersectionPoint = globeIntersects[0].point;
+                    // Get the intersection point on the globe in local coordinates
+                    // This is critical to account for the globe's rotation
+                    const intersectionPoint = globeIntersects[0].point.clone();
+                    
+                    // Convert world coordinates to globe's local coordinates
+                    // This accounts for the globe rotation
+                    globeGroup.worldToLocal(intersectionPoint);
                     
                     // Reference to the instanced dots
                     const instancedDots = landDots.userData.instancedDots;
@@ -986,13 +991,13 @@
                         const position = new THREE.Vector3();
                         const scale = new THREE.Vector3(1, 1, 1);
                         
-                        // Apply hover effects to only points that might be affected to improve performance
-                        // We'll use a limit to avoid processing all points
-                        const refreshLimit = Math.min(2000, landPoints.length);
-                        for (let i = 0; i < refreshLimit; i++) {
-                            // Get a random dot index for a more distributed effect
-                            const randomIndex = Math.floor(Math.random() * landPoints.length);
-                            const dot = landPoints[randomIndex];
+                        // Update all points but optimize for performance
+                        // Loop through all land points but skip some for performance
+                        // This gives a better effect than random selection while maintaining performance
+                        const skipPoints = Math.max(1, Math.floor(landPoints.length / 3000)); 
+                        
+                        for (let i = 0; i < landPoints.length; i += skipPoints) {
+                            const dot = landPoints[i];
                             
                             // Get original position
                             const originalPos = dot.originalPosition;
@@ -1024,8 +1029,10 @@
                                 const rotationMatrix = new THREE.Matrix4().lookAt(position, lookAt, up);
                                 quaternion.setFromRotationMatrix(rotationMatrix);
                                 
-                                // Set matrix
+                                // Create matrix in local coordinates
                                 matrix.compose(position, quaternion, scale);
+                                
+                                // Set matrix in local space - globeGroup rotation is automatically applied
                                 instancedDots.setMatrixAt(dot.index, matrix);
                             }
                             else {
@@ -1039,8 +1046,10 @@
                                 const rotationMatrix = new THREE.Matrix4().lookAt(position, lookAt, up);
                                 quaternion.setFromRotationMatrix(rotationMatrix);
                                 
-                                // Set matrix
+                                // Create matrix in local coordinates
                                 matrix.compose(position, quaternion, scale);
+                                
+                                // Set matrix in local space - globeGroup rotation is automatically applied
                                 instancedDots.setMatrixAt(dot.index, matrix);
                             }
                         }
