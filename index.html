@@ -39,10 +39,11 @@
             dotSize: 0.06,                    // Size of land dots (0.05-0.1)
             dotSegments: 6,                   // Land dot geometry segments (4-8, lower for better performance)
             hoverEffect: 0.05,                // Strength of dot hover effect (0.1-0.5)
+            hoverPull: 0.45,                  // The focus of the hover effect
             
             // Arcs
-            maxConcurrentArcs: 40,            // Maximum concurrent arcs (6-40, lower for better performance)
-            arcFrequency: 0.2,                // How often new arcs appear (higher = less frequent)
+            maxConcurrentArcs: 10,            // Maximum concurrent arcs (6-40, lower for better performance)
+            arcFrequency: 0.4,                // How often new arcs appear (higher = less frequent)
             arcTimingVariation: 0.15,         // Randomness in arc timing (0-1, higher = more random)
             arcTubeSegments: 18,              // Maximum tube segments for arcs (6-18, lower for better performance) 
             arcRadialSegments: 6,             // Radial segments for arc tubes (3-8, lower for better performance)
@@ -228,8 +229,10 @@
         fillLight.position.set(0, 15, 15);
         scene.add(fillLight);
         
-        // Position camera
-        camera.position.z = 28;
+        // Position camera with a higher angle view
+        camera.position.z = 25;
+        camera.position.y = 15; // Add elevation for top-down angle
+        camera.lookAt(0, 0, 0); // Ensure camera is looking at the center of the globe
         
         // Load land coordinates (simplified version)
         const landPoints = [];
@@ -1136,7 +1139,7 @@
                             
                             // Convert distance to an effect factor
                             // Closer points should rise more, with a much tighter, localized falloff
-                            const maxDistance = radius * 0.25; // Significantly reduced max distance for a much more focused effect
+                            const maxDistance = radius * CONFIG.hoverPull; // Significantly reduced max distance for a much more focused effect
                             
                             if (distance < maxDistance) {
                                 // Calculate a much more focused hover effect with steeper falloff
