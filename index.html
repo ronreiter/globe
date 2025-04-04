@@ -1103,9 +1103,9 @@
                         window.lastIntersectionPoint = currentIntersectionPoint.clone();
                     }
                     
-                    // Smoothly transition between intersection points for less jerky movement
-                    // Linear interpolation with small step for smooth transition
-                    window.lastIntersectionPoint.lerp(currentIntersectionPoint, 0.1);
+                    // More responsive transition for the focused hover effect
+                    // Increase the lerp factor for quicker response while still maintaining some smoothing
+                    window.lastIntersectionPoint.lerp(currentIntersectionPoint, 0.3); // Higher interpolation factor for faster response
                     
                     // Use the smoothed intersection point
                     const intersectionPoint = window.lastIntersectionPoint;
@@ -1121,9 +1121,9 @@
                         const position = new THREE.Vector3();
                         const scale = new THREE.Vector3(1, 1, 1);
                         
-                        // Process all points for a consistent effect
-                        // In high performance mode, we can still skip some points
-                        const skipPoints = CONFIG.useHighPerformanceMode ? 2 : 1;
+                        // For the more focused hover effect, we need dense point processing in the hover area
+                        // Even in high performance mode, we process all points for consistency
+                        const skipPoints = 1; // Never skip points for more precise hover effect
                         
                         for (let i = 0; i < landPoints.length; i += skipPoints) {
                             const dot = landPoints[i];
@@ -1135,17 +1135,19 @@
                             const distance = originalPos.distanceTo(intersectionPoint);
                             
                             // Convert distance to an effect factor
-                            // Closer points should rise more, with a smooth falloff
-                            const maxDistance = radius * 0.6; // Reduced max distance for a more focused effect
+                            // Closer points should rise more, with a much tighter, localized falloff
+                            const maxDistance = radius * 0.25; // Significantly reduced max distance for a much more focused effect
                             
                             if (distance < maxDistance) {
-                                // Calculate a smoother hover amount with bell-curve like falloff
-                                // Use a combination of sine and exponential functions for smoother effect
+                                // Calculate a much more focused hover effect with steeper falloff
+                                // Use a sharper exponential curve for more localized effect
                                 const normalizedDist = distance / maxDistance;
                                 
-                                // Create a bell-curve effect that peaks at the center and falls off smoothly
+                                // Create a steeper falloff using higher power exponent
+                                // This will make the effect drop off much more quickly with distance
                                 const bellCurve = Math.cos(normalizedDist * Math.PI * 0.5);
-                                const smoothFactor = Math.pow(bellCurve, 2) * CONFIG.hoverEffect;
+                                const exponentialFalloff = Math.pow(bellCurve, 4); // Higher power for much steeper falloff
+                                const smoothFactor = exponentialFalloff * CONFIG.hoverEffect * 1.5; // Slightly intensify the center effect
                                 
                                 // Apply hover effect - move dot outward from globe center
                                 const direction = originalPos.clone().normalize();
