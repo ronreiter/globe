@@ -1175,36 +1175,17 @@
                     globeGroup.remove(arc.arc);
                     arc.arc.geometry.dispose();
                     
-                    // If this arc has a linked impact effect, remove the bullseye elements
+                    // If this arc has a linked impact effect, start fading out the bullseye elements
                     if (arc.impactEffect) {
-                        console.log("Removing bullseye for arc");
+                        console.log("Starting fade out for bullseye");
                         
-                        // Remove the bullseye center dot
-                        if (arc.impactEffect.centerDot) {
-                            console.log("Removing centerDot");
-                            globeGroup.remove(arc.impactEffect.centerDot);
-                            arc.impactEffect.centerDotMaterial.dispose();
-                            arc.impactEffect.centerDot.geometry.dispose();
-                            arc.impactEffect.centerDot = null; // Clear reference
-                        }
+                        // Mark the effect as fading instead of removing immediately
+                        arc.impactEffect.isFadingOut = true;
+                        arc.impactEffect.fadeStartTime = performance.now() / 1000;
+                        arc.impactEffect.fadeDuration = 1.0; // 1 second fade-out duration
                         
-                        // Remove the bullseye outer ring
-                        if (arc.impactEffect.middleRing) {
-                            console.log("Removing middleRing");
-                            globeGroup.remove(arc.impactEffect.middleRing);
-                            arc.impactEffect.middleRingMaterial.dispose();
-                            arc.impactEffect.middleRing.geometry.dispose();
-                            arc.impactEffect.middleRing = null; // Clear reference
-                        }
-                        
-                        // Find and remove the effect from impactEffects array
-                        const effectIndex = impactEffects.indexOf(arc.impactEffect);
-                        if (effectIndex > -1) {
-                            console.log("Removing effect from array at index", effectIndex);
-                            impactEffects.splice(effectIndex, 1);
-                        }
-                        
-                        // Clear the reference
+                        // Keep the reference to the effect but remove the reference from the arc
+                        // so we don't double-process it
                         arc.impactEffect = null;
                     }
                     
@@ -1216,12 +1197,24 @@
             for (let i = impactEffects.length - 1; i >= 0; i--) {
                 const effect = impactEffects[i];
                 
-                // Safety check: if this effect is linked to an arc that no longer exists
-                // or is about to be removed, clean it up immediately
-                if (effect.linkedToArc && effect.parentArc) {
-                    const arcIndex = arcs.indexOf(effect.parentArc);
-                    if (arcIndex === -1 || effect.parentArc.age >= effect.parentArc.growDuration + effect.parentArc.maxLife) {
-                        console.log("Cleanup: Linked impact effect found without live parent arc");
+                // Handle fading out bullseye effects
+                if (effect.isFadingOut) {
+                    const currentTime = performance.now() / 1000;
+                    const fadeElapsed = currentTime - effect.fadeStartTime;
+                    const fadeProgress = Math.min(1, fadeElapsed / effect.fadeDuration);
+                    
+                    // Apply fade out to bullseye elements
+                    if (effect.centerDot && effect.centerDotMaterial) {
+                        effect.centerDotMaterial.opacity = Math.max(0, 0.85 * (1 - fadeProgress));
+                    }
+                    
+                    if (effect.middleRing && effect.middleRingMaterial) {
+                        effect.middleRingMaterial.opacity = Math.max(0, 0.75 * (1 - fadeProgress));
+                    }
+                    
+                    // If fade completed, remove the elements
+                    if (fadeProgress >= 1) {
+                        console.log("Fade out complete, removing bullseye elements");
                         
                         // Remove bullseye center dot
                         if (effect.centerDot) {
@@ -1239,6 +1232,27 @@
                         
                         // Remove the effect from the array and continue to next iteration
                         impactEffects.splice(i, 1);
+                        continue;
+                    }
+                    
+                    // Continue to next effect since we've handled this one
+                    continue;
+                }
+                
+                // Safety check: if this effect is linked to an arc that no longer exists
+                // or is about to be removed, start fading it out
+                if (effect.linkedToArc && effect.parentArc) {
+                    const arcIndex = arcs.indexOf(effect.parentArc);
+                    if (arcIndex === -1 || effect.parentArc.age >= effect.parentArc.growDuration + effect.parentArc.maxLife) {
+                        console.log("Starting fade out for orphaned bullseye effect");
+                        
+                        // Mark the effect as fading instead of removing immediately
+                        effect.isFadingOut = true;
+                        effect.fadeStartTime = performance.now() / 1000;
+                        effect.fadeDuration = 1.0; // 1 second fade-out duration
+                        effect.parentArc = null; // Clear the parent reference
+                        
+                        // Continue to next iteration
                         continue;
                     }
                 }
@@ -1335,29 +1349,14 @@
                     // Mark expanding rings as removed
                     effect.ringsRemoved = true;
                     
-                    // For effects not linked to arcs, we clean up everything immediately
-                    // Arc-linked effects will be cleaned up when their arc disappears
-                    if (!effect.linkedToArc) {
-                        console.log("Removing unlinked impact effect");
+                    // For effects not linked to arcs, start fading out the bullseye
+                    if (!effect.linkedToArc && !effect.isFadingOut) {
+                        console.log("Starting fade out for unlinked impact effect");
                         
-                        // Remove bullseye center dot
-                        if (effect.centerDot) {
-                            globeGroup.remove(effect.centerDot);
-                            effect.centerDotMaterial.dispose();
-                            effect.centerDot.geometry.dispose();
-                            effect.centerDot = null; // Clear reference
-                        }
-                        
-                        // Remove bullseye outer ring
-                        if (effect.middleRing) {
-                            globeGroup.remove(effect.middleRing);
-                            effect.middleRingMaterial.dispose();
-                            effect.middleRing.geometry.dispose();
-                            effect.middleRing = null; // Clear reference
-                        }
-                        
-                        // Remove the effect from the array
-                        impactEffects.splice(i, 1);
+                        // Mark the effect as fading
+                        effect.isFadingOut = true;
+                        effect.fadeStartTime = performance.now() / 1000;
+                        effect.fadeDuration = 1.0; // 1 second fade-out duration
                     }
                 }
                 }
