@@ -22,16 +22,16 @@
             atmosphereOpacity: 0.1,           // Opacity of atmosphere (0.1-0.5)
             atmosphereGlow: 1.0,              // Intensity of atmosphere glow effect (1.0-3.0)
             
-            // Arc color palette (in hex format)
+            // Arc color palette (in hex format with adjusted brightness and more saturation)
             arcColors: [
-                0xFA3E48, // Red
-                0xFDCA57, // Yellow
-                0x95CFFA, // Light Blue
-                0xAC7DE4, // Purple
-                0xEF445D, // Pink
-                0xB75ED1, // Dark Purple
-                0xFD9651, // Orange
-                0x90E0FF  // Sky Blue
+                0xD02C34, // Deeper Red
+                0xE9A23A, // Golden Yellow
+                0x5494D4, // Richer Blue
+                0x8A5BC8, // Deeper Purple
+                0xCF3250, // Deeper Pink
+                0x9240B3, // Rich Violet
+                0xE06C33, // Burnt Orange
+                0x50A0D8  // Azure Blue
             ],
             
             // Land points
@@ -486,18 +486,31 @@
             const startColor = new THREE.Color(CONFIG.arcColors[colorIndex1]);
             const endColor = new THREE.Color(CONFIG.arcColors[colorIndex2]);
             
-            // Use a gradient texture for the arc color
+            // Use a gradient texture for the arc color with enhanced transition
             const canvas = document.createElement('canvas');
             canvas.width = 256;
             canvas.height = 1;
             const context = canvas.getContext('2d');
             
-            // Create a linear gradient
+            // Create a linear gradient with smoother transition
             const gradient = context.createLinearGradient(0, 0, canvas.width, 0);
+            
+            // Improve gradient with more color stops for richer transition
+            // Start with the pure start color
             gradient.addColorStop(0, '#' + startColor.getHexString());
+            
+            // Add a 25% blend for smoother transition
+            const quarterBlend = new THREE.Color().lerpColors(startColor, endColor, 0.25);
+            gradient.addColorStop(0.3, '#' + quarterBlend.getHexString());
+            
+            // Add a 75% blend for smoother transition
+            const threeQuarterBlend = new THREE.Color().lerpColors(startColor, endColor, 0.75);
+            gradient.addColorStop(0.7, '#' + threeQuarterBlend.getHexString());
+            
+            // End with the pure end color
             gradient.addColorStop(1, '#' + endColor.getHexString());
             
-            // Fill the canvas with the gradient
+            // Fill the canvas with the enhanced gradient
             context.fillStyle = gradient;
             context.fillRect(0, 0, canvas.width, canvas.height);
             
@@ -505,9 +518,9 @@
             const gradientTexture = new THREE.CanvasTexture(canvas);
             gradientTexture.needsUpdate = true;
             
-            // Create the tube material with the gradient texture
+            // Create the tube material with the gradient texture and improved settings
             const tubeMaterial = new THREE.MeshBasicMaterial({
-                opacity: 0.9,
+                opacity: 0.85, // Slightly reduced opacity
                 transparent: true,
                 depthWrite: false, // Disable depth writing for better blending
                 blending: THREE.AdditiveBlending, // Use additive blending for a glowing effect
@@ -565,8 +578,8 @@
             // Create a secondary outer circle with a lighter version of the impact color
             const outerCircleGeometry = new THREE.CircleGeometry(0.07, 16); // Smaller initial size
             
-            // Create a lighter version of the impact color for the outer circle
-            const lightenedColor = impactColor.clone().lerp(new THREE.Color(0xffffff), 0.6);
+            // Create a lighter but still colorful version of the impact color for the outer circle
+            const lightenedColor = impactColor.clone().lerp(new THREE.Color(0xffffff), 0.4);
             
             const outerCircleMaterial = new THREE.MeshBasicMaterial({
                 color: lightenedColor, // Lighter version of impact color
