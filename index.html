@@ -23,6 +23,7 @@
             numPoints: 25000,                 // Maximum points to generate (3000-25000, lower for better performance)
             dotSize: 0.06,                    // Size of land dots (0.05-0.1)
             dotSegments: 6,                   // Land dot geometry segments (4-8, lower for better performance)
+            hoverEffect: 0.3,                 // Strength of dot hover effect (0.1-0.5)
             
             // Arcs
             maxConcurrentArcs: 40,            // Maximum concurrent arcs (6-40, lower for better performance)
@@ -52,6 +53,7 @@
             CONFIG.numPoints = 12000;       // Increased for better land coverage while maintaining performance
             CONFIG.dotSegments = 4;
             CONFIG.dotSize = 0.07;          // Slightly larger dots for better visibility with fewer points
+            CONFIG.hoverEffect = 0.15;      // Reduce hover effect for better performance
             CONFIG.maxConcurrentArcs = 25;  // Still allow many arcs but reduced from normal mode
             CONFIG.arcFrequency = 0.3;      // Slightly less frequent arc creation for performance
             CONFIG.arcTubeSegments = 12;    // Increased for smoother arcs even in performance mode
@@ -961,9 +963,93 @@
                 }
             } // Close the frame skipping condition
             
-            // Disable hover effects for better performance - these don't work well with instanced meshes
-            // and are a major source of performance issues when we have thousands of points
-            
+            // Hover effects for land points
+            if (!isDragging) {
+                // Cast a ray from the mouse position
+                raycaster.setFromCamera(mouse, camera);
+                
+                // Check if the ray intersects with the globe
+                const globeIntersects = raycaster.intersectObject(globe);
+                
+                if (globeIntersects.length > 0) {
+                    // Get the intersection point on the globe
+                    const intersectionPoint = globeIntersects[0].point;
+                    
+                    // Reference to the instanced dots
+                    const instancedDots = landDots.userData.instancedDots;
+                    
+                    // Calculate hover effects for all land points based on distance
+                    if (instancedDots) {
+                        // Create a new Matrix4 and Quaternion for updating dots
+                        const matrix = new THREE.Matrix4();
+                        const quaternion = new THREE.Quaternion();
+                        const position = new THREE.Vector3();
+                        const scale = new THREE.Vector3(1, 1, 1);
+                        
+                        // Apply hover effects to only points that might be affected to improve performance
+                        // We'll use a limit to avoid processing all points
+                        const refreshLimit = Math.min(2000, landPoints.length);
+                        for (let i = 0; i < refreshLimit; i++) {
+                            // Get a random dot index for a more distributed effect
+                            const randomIndex = Math.floor(Math.random() * landPoints.length);
+                            const dot = landPoints[randomIndex];
+                            
+                            // Get original position
+                            const originalPos = dot.originalPosition;
+                            
+                            // Calculate distance to intersection point
+                            const distance = originalPos.distanceTo(intersectionPoint);
+                            
+                            // Convert distance to an effect factor
+                            // Closer points should rise more, with a smooth falloff
+                            const maxDistance = radius * 0.8; // Max distance for any effect
+                            
+                            if (distance < maxDistance) {
+                                // Calculate hover amount - inverse of distance
+                                const hoverFactor = Math.pow(1 - distance / maxDistance, 3) * CONFIG.hoverEffect;
+                                
+                                // Apply hover effect - move dot outward from globe center
+                                const direction = originalPos.clone().normalize();
+                                const newPosition = originalPos.clone().add(
+                                    direction.multiplyScalar(radius * hoverFactor)
+                                );
+                                
+                                // Update matrix for this instance
+                                position.copy(newPosition);
+                                
+                                // Orient dot to face outward
+                                const normal = newPosition.clone().normalize();
+                                const lookAt = position.clone().add(normal);
+                                const up = new THREE.Vector3(0, 1, 0);
+                                const rotationMatrix = new THREE.Matrix4().lookAt(position, lookAt, up);
+                                quaternion.setFromRotationMatrix(rotationMatrix);
+                                
+                                // Set matrix
+                                matrix.compose(position, quaternion, scale);
+                                instancedDots.setMatrixAt(dot.index, matrix);
+                            }
+                            else {
+                                // Reset to original position if not affected
+                                position.copy(originalPos);
+                                
+                                // Orient dot to face outward
+                                const normal = originalPos.clone().normalize();
+                                const lookAt = position.clone().add(normal);
+                                const up = new THREE.Vector3(0, 1, 0);
+                                const rotationMatrix = new THREE.Matrix4().lookAt(position, lookAt, up);
+                                quaternion.setFromRotationMatrix(rotationMatrix);
+                                
+                                // Set matrix
+                                matrix.compose(position, quaternion, scale);
+                                instancedDots.setMatrixAt(dot.index, matrix);
+                            }
+                        }
+                        
+                        // Update the instance matrices
+                        instancedDots.instanceMatrix.needsUpdate = true;
+                    }
+                }
+            }
             
             renderer.render(scene, camera);
         }
