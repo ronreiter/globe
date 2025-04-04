@@ -50,15 +50,17 @@
             arcTubeSegments: 18,              // Maximum tube segments for arcs (6-18, lower for better performance) 
             arcRadialSegments: 6,             // Radial segments for arc tubes (3-8, lower for better performance)
             arcThickness: 0.038,              // Thickness of arcs (0.03-0.1)
-            arcPointsCount: 45,               // Number of points in arc path (20-50, lower for better performance)
+            arcPointsCount: 80,               // Number of points in arc path (20-50, lower for better performance)
             
             // Animation and behavior
             rotationSpeed: 0.002,             // Speed of auto-rotation (0.001-0.003)
-            arcGrowDuration: 0.7,             // Base duration for arc growth in seconds (0.5-1.5)
-            arcRetreatDuration: 2.0,          // Base duration for arc retreat in seconds (0.8-3.0)
+            arcGrowDuration: 1.3,             // Base duration for arc growth in seconds (0.5-1.5)
+            arcRetreatDuration: 2.8,          // Base duration for arc retreat in seconds (0.8-3.0)
             
             // Impact effects
-            impactSize: 0.08,                 // Maximum impact size as fraction of globe radius (0.05-0.2)
+            impactSize: 0.05,                 // Maximum impact size as fraction of globe radius (0.05-0.2)
+            bullseyeSize: 0.10,               // Size of bullseye center (0.1-0.3)
+            bullseyeRingSize: 0.2,            // Size of bullseye outer ring (0.2-0.4)
             
             // Rendering
             useHighPerformanceMode: false,    // Set true for better performance but lower visual quality
@@ -627,8 +629,8 @@
             
             // Create a ring (bordered circle) that will expand outward
             const ringGeometry = new THREE.RingGeometry(
-                0.12, // Inner radius - creates the border effect
-                0.18,  // Outer radius
+                CONFIG.bullseyeSize * 0.67, // Inner radius - creates the border effect
+                CONFIG.bullseyeSize,  // Outer radius
                 24     // More segments for a smoother ring
             );
             const circleMaterial = new THREE.MeshBasicMaterial({
@@ -654,8 +656,8 @@
             
             // Create a secondary outer ring with a lighter version of the impact color
             const outerRingGeometry = new THREE.RingGeometry(
-                0.12, // Inner radius
-                0.18, // Outer radius - creates a larger border
+                CONFIG.bullseyeSize * 0.67, // Inner radius
+                CONFIG.bullseyeSize, // Outer radius - creates a larger border
                 24     // More segments for a smoother ring
             );
             
@@ -689,7 +691,7 @@
             
             // Create a permanent bullseye target at the landing point
             // Center filled circle
-            const centerDotGeometry = new THREE.CircleGeometry(0.18, 24);
+            const centerDotGeometry = new THREE.CircleGeometry(CONFIG.bullseyeSize, 24);
             const centerDotMaterial = new THREE.MeshBasicMaterial({
                 color: impactColor,
                 side: THREE.DoubleSide,
@@ -714,7 +716,7 @@
             globeGroup.add(centerDot);
             
             // Middle ring of the bullseye
-            const middleRingGeometry = new THREE.RingGeometry(0.22, 0.3, 24);
+            const middleRingGeometry = new THREE.RingGeometry(CONFIG.bullseyeSize * 1.22, CONFIG.bullseyeRingSize, 24);
             const middleRingMaterial = new THREE.MeshBasicMaterial({
                 color: lightenedColor,
                 side: THREE.DoubleSide,
