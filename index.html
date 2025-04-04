@@ -408,9 +408,9 @@
             const midPoint = startPos.clone().add(endPos).multiplyScalar(0.5);
             const distance = startPos.distanceTo(endPos);
             
-            // Make the arc height relative to distance but ensure it touches the globe
-            // Height of the arc depends on distance but is more rounded
-            midPoint.normalize().multiplyScalar(radius + distance * 1.2); // Higher, more rounded arcs
+            // Make the arc height significantly higher for a more dramatic curve
+            // Height is increased substantially to create towering arcs
+            midPoint.normalize().multiplyScalar(radius + distance * 1.8); // Much higher, more dramatic arcs
             
             // Slightly adjust start and end points to ensure arcs touch the globe
             const adjustStartPos = startPos.clone().normalize().multiplyScalar(radius * 0.997);
@@ -447,8 +447,10 @@
                 } else {
                     // Use cubic Bezier curve for smoother arcs
                     // Create two control points for better rounding
-                    const cp1 = new THREE.Vector3().lerpVectors(adjustStartPos, midPoint, 0.3);
-                    const cp2 = new THREE.Vector3().lerpVectors(midPoint, adjustEndPos, 0.7);
+                    // Adjust control points to create smoother, more parabolic arcs
+                    // First control point closer to start, second closer to end
+                    const cp1 = new THREE.Vector3().lerpVectors(adjustStartPos, midPoint, 0.25);
+                    const cp2 = new THREE.Vector3().lerpVectors(midPoint, adjustEndPos, 0.75);
                     
                     // Cubic Bezier formula
                     const u = 1 - t;
@@ -559,8 +561,8 @@
             
             // Create a ring (bordered circle) that will expand outward
             const ringGeometry = new THREE.RingGeometry(
-                0.045, // Inner radius - creates the border effect
-                0.05,  // Outer radius
+                0.025, // Inner radius - creates the border effect
+                0.035,  // Outer radius
                 24     // More segments for a smoother ring
             );
             const circleMaterial = new THREE.MeshBasicMaterial({
@@ -586,8 +588,8 @@
             
             // Create a secondary outer ring with a lighter version of the impact color
             const outerRingGeometry = new THREE.RingGeometry(
-                0.065, // Inner radius
-                0.075, // Outer radius - creates a larger border
+                0.025, // Inner radius
+                0.035, // Outer radius - creates a larger border
                 24     // More segments for a smoother ring
             );
             
