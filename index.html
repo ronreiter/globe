@@ -18,9 +18,9 @@
             // Globe appearance
             globeRadius: 11,                  // Size of the globe
             globeSegments: 64,                // Resolution of the globe (32-128, lower for better performance)
-            atmosphereSize: 1.03,             // Size of atmosphere relative to globe (1.1-1.5)
-            atmosphereOpacity: 0.1,           // Opacity of atmosphere (0.1-0.5)
-            atmosphereGlow: 1.0,              // Intensity of atmosphere glow effect (1.0-3.0)
+            atmosphereSize: 1.15,             // Size of atmosphere relative to globe (1.1-1.5)
+            atmosphereOpacity: 0.18,          // Opacity of atmosphere (0.1-0.5)
+            atmosphereGlow: 1.2,              // Intensity of atmosphere glow effect (1.0-3.0)
             
             // Arc color palette (in hex format with adjusted brightness and more saturation)
             arcColors: [
@@ -35,10 +35,10 @@
             ],
             
             // Land points
-            numPoints: 25000,                 // Maximum points to generate (3000-25000, lower for better performance)
-            dotSize: 0.06,                    // Size of land dots (0.05-0.1)
+            numPoints: 50000,                 // Maximum points to generate (3000-25000, lower for better performance)
+            dotSize: 0.05,                    // Size of land dots (0.05-0.1)
             dotSegments: 6,                   // Land dot geometry segments (4-8, lower for better performance)
-            dotOpacity: 0.5,                  // Opacity of land dots (0.1-1.0)
+            dotOpacity: 0.4,                  // Opacity of land dots (0.1-1.0)
             hoverEffect: 0.05,                // Strength of dot hover effect (0.1-0.5)
             hoverPull: 0.45,                  // The focus of the hover effect
             
@@ -171,17 +171,57 @@
             CONFIG.globeSegments
         );
         
-        // Create a material that will react well to light
-        const atmosphereMaterial = new THREE.MeshPhongMaterial({
-            color: 0x4499ff, // Bright blue base color
+        // Create a custom shader material for the atmosphere halo effect
+        const atmosphereMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                globeRadius: { value: radius },
+                atmosphereRadius: { value: atmosphereSize },
+                color: { value: new THREE.Color(0x4499ff) }, // Bright blue base color
+                glowColor: { value: new THREE.Color(0x77aaff) }, // Slightly lighter blue for the edge glow
+                opacity: { value: CONFIG.atmosphereOpacity * 1.2 }, // Slightly increased for better visibility
+                power: { value: 2.0 }, // Controls the edge glow power (higher = sharper edge)
+                time: { value: 0.0 } // For subtle animation
+            },
+            vertexShader: `
+                varying vec3 vPosition;
+                varying vec3 vNormal;
+                
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    vPosition = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float globeRadius;
+                uniform float atmosphereRadius;
+                uniform vec3 color;
+                uniform vec3 glowColor;
+                uniform float opacity;
+                uniform float power;
+                uniform float time;
+                
+                varying vec3 vPosition;
+                varying vec3 vNormal;
+                
+                void main() {
+                    // Calculate distance from camera/view vector
+                    float intensity = pow(0.75 - dot(vNormal, vec3(0, 0, 1.0)), power);
+                    
+                    // Add time-based pulsing (subtle)
+                    float pulse = 1.0 + 0.08 * sin(time * 0.5);
+                    
+                    // Create the rim light/halo effect blended with base color
+                    vec3 finalColor = mix(color, glowColor, intensity) * pulse;
+                    
+                    // Apply the glow with opacity falloff
+                    gl_FragColor = vec4(finalColor, min(1.0, opacity * intensity * 1.5));
+                }
+            `,
+            side: THREE.BackSide,
             transparent: true,
-            opacity: CONFIG.atmosphereOpacity,
-            side: THREE.BackSide, // Render the inside for volumetric effect
             blending: THREE.AdditiveBlending,
-            depthWrite: false, // Important for proper transparency
-            shininess: 90, // High shininess to catch light
-            emissive: 0x2266ff, // Blue emissive glow
-            emissiveIntensity: 0.8 // Strong emissive effect
+            depthWrite: false
         });
         
         // Create the atmosphere mesh
@@ -811,21 +851,24 @@
                 // Also pulse the inner glow opacity for enhanced effect
                 innerGlowMaterial.opacity = 0.15 * (primaryPulse * 0.8 + 0.6);
                 
-                // Animate the atmosphere with better glow effect
-                // Pulse the opacity for subtle breathing effect
-                if (globeGroup.userData.atmosphere && globeGroup.userData.atmosphere.material) {
-                    // Adjust the opacity for subtle pulsing
-                    globeGroup.userData.atmosphere.material.opacity = 
-                        CONFIG.atmosphereOpacity * (primaryPulse * 0.2 + 0.9);
+                // Animate the atmosphere shader for halo effect
+                if (globeGroup.userData.atmosphere && globeGroup.userData.atmosphere.material && 
+                    globeGroup.userData.atmosphere.material.uniforms) {
+                    // Update the time uniform for the shader animation
+                    globeGroup.userData.atmosphere.material.uniforms.time.value = seconds;
                     
-                    // Animate emissive intensity for changing glow
-                    globeGroup.userData.atmosphere.material.emissiveIntensity = 
-                        0.8 * (secondaryPulse * 0.3 + 0.85);
+                    // Pulse the opacity for subtle breathing effect
+                    globeGroup.userData.atmosphere.material.uniforms.opacity.value = 
+                        CONFIG.atmosphereOpacity * 1.2 * (primaryPulse * 0.2 + 0.9);
                     
-                    // Slightly vary the color for a more natural effect
-                    const hue = 0.6 + (primaryPulse * 0.015); // Subtle hue shift in blue range
-                    const color = new THREE.Color().setHSL(hue, 0.8, 0.6);
-                    globeGroup.userData.atmosphere.material.emissive.copy(color);
+                    // Adjust the power parameter for varying glow sharpness
+                    globeGroup.userData.atmosphere.material.uniforms.power.value = 
+                        2.0 + secondaryPulse * 0.3;
+                    
+                    // Slightly vary the glow color for a more dynamic effect
+                    const hue = 0.6 + (primaryPulse * 0.02); // Subtle hue shift in blue range
+                    const glowColor = new THREE.Color().setHSL(hue, 0.8, 0.6);
+                    globeGroup.userData.atmosphere.material.uniforms.glowColor.value.copy(glowColor);
                 }
                 
                 // Animate the dedicated atmosphere light for stronger effect
