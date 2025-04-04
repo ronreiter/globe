@@ -30,7 +30,7 @@
             arcTimingVariation: 0.15,         // Randomness in arc timing (0-1, higher = more random)
             arcTubeSegments: 12,              // Maximum tube segments for arcs (6-16, lower for better performance) 
             arcRadialSegments: 4,             // Radial segments for arc tubes (3-8, lower for better performance)
-            arcThickness: 0.06,               // Thickness of arcs (0.04-0.1)
+            arcThickness: 0.038,              // Thickness of arcs (0.03-0.1)
             arcPointsCount: 35,               // Number of points in arc path (20-40, lower for better performance)
             
             // Animation and behavior
@@ -55,6 +55,7 @@
             CONFIG.maxConcurrentArcs = 25;  // Still allow many arcs but reduced from normal mode
             CONFIG.arcFrequency = 0.3;      // Slightly less frequent arc creation for performance
             CONFIG.arcTubeSegments = 8;
+            CONFIG.arcThickness = 0.04;     // Slightly thicker for visibility in performance mode
             CONFIG.arcRadialSegments = 3;
             CONFIG.arcPointsCount = 25;
             CONFIG.skipFrames = 1;
@@ -298,8 +299,8 @@
             
             // Create the tube material with flat color (no lighting/gradient effects)
             const tubeMaterial = new THREE.MeshBasicMaterial({
-                color: 0xccddff, // Light blue-white color for arcs
-                opacity: 0.9,
+                color: 0xc0d8ff, // Slightly softer blue-white color for thinner arcs
+                opacity: 0.85,
                 transparent: true
             });
             
@@ -682,7 +683,7 @@
                             tubePath, 
                             dynamicSegments,
                             // Gradually thin the arc as it retreats for a more elegant disappearance
-                            CONFIG.arcThickness * (1 - (retreatProgress * 0.2)), // Slightly reduce thickness
+                            CONFIG.arcThickness * (1 - (retreatProgress * 0.3)), // More pronounced thinning during retreat
                             CONFIG.arcRadialSegments,
                             false
                         );
