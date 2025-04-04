@@ -18,8 +18,9 @@
             // Globe appearance
             globeRadius: 11,                  // Size of the globe
             globeSegments: 64,                // Resolution of the globe (32-128, lower for better performance)
-            atmosphereSize: 1.35,             // Size of atmosphere relative to globe (1.1-1.5)
+            atmosphereSize: 1.15,             // Size of atmosphere relative to globe (1.1-1.5)
             atmosphereOpacity: 0.3,           // Opacity of atmosphere (0.1-0.5)
+            atmosphereGlow: 2.5,              // Intensity of atmosphere glow effect (1.0-3.0)
             
             // Land points
             numPoints: 25000,                 // Maximum points to generate (3000-25000, lower for better performance)
@@ -47,25 +48,7 @@
             // Rendering
             useHighPerformanceMode: false,    // Set true for better performance but lower visual quality
             skipFrames: 0                     // Number of frames to skip when updating (0-2, higher for better performance)
-        };
-        
-        // Enable high performance mode if needed
-        if (CONFIG.useHighPerformanceMode) {
-            CONFIG.globeSegments = 32;
-            CONFIG.numPoints = 12000;       // Increased for better land coverage while maintaining performance
-            CONFIG.dotSegments = 4;
-            CONFIG.dotSize = 0.07;          // Slightly larger dots for better visibility with fewer points
-            CONFIG.hoverEffect = 0.08;      // Reduce hover effect for better performance
-            CONFIG.atmosphereSize = 1.2;    // Smaller atmosphere for performance
-            CONFIG.atmosphereOpacity = 0.25; // Reduced opacity for performance
-            CONFIG.maxConcurrentArcs = 25;  // Still allow many arcs but reduced from normal mode
-            CONFIG.arcFrequency = 0.3;      // Slightly less frequent arc creation for performance
-            CONFIG.arcTubeSegments = 12;    // Increased for smoother arcs even in performance mode
-            CONFIG.arcThickness = 0.04;     // Slightly thicker for visibility in performance mode
-            CONFIG.arcRadialSegments = 4;   // Increased for smoother arc cross-section
-            CONFIG.arcPointsCount = 32;     // Increased for smoother arc paths
-            CONFIG.skipFrames = 1;
-        }
+        };        
         
         // Auto-detect performance capabilities and adjust settings if needed
         // This helps ensure smooth performance on all devices without manual toggling
@@ -165,30 +148,39 @@
         const innerGlow = new THREE.Mesh(innerGlowGeometry, innerGlowMaterial);
         globeGroup.add(innerGlow);
         
-        // Add atmosphere effect (outer glow)
+        // Add a single atmosphere with light-based glow effect
         const atmosphereSize = radius * CONFIG.atmosphereSize;
         const atmosphereGeometry = new THREE.SphereGeometry(
             atmosphereSize,
-            Math.max(32, Math.floor(CONFIG.globeSegments * 0.75)), // Higher res for atmosphere 
-            Math.max(32, Math.floor(CONFIG.globeSegments * 0.75))
+            CONFIG.globeSegments, // Use same resolution as globe for smooth appearance
+            CONFIG.globeSegments
         );
         
-        // Create a simpler material for the atmosphere that will be more visible
-        const atmosphereMaterial = new THREE.MeshBasicMaterial({
-            color: 0x4499ff, // Brighter blue atmosphere
+        // Create a material that will react well to light
+        const atmosphereMaterial = new THREE.MeshPhongMaterial({
+            color: 0x4499ff, // Bright blue base color
             transparent: true,
-            opacity: CONFIG.atmosphereOpacity * 1.5, // Increase opacity to make it more visible
-            side: THREE.BackSide, // Render the inside to create a volume effect
-            blending: THREE.AdditiveBlending, // Additive blending for glow effect
-            depthWrite: false // Disable depth writing for better blending
+            opacity: CONFIG.atmosphereOpacity,
+            side: THREE.BackSide, // Render the inside for volumetric effect
+            blending: THREE.AdditiveBlending,
+            depthWrite: false, // Important for proper transparency
+            shininess: 90, // High shininess to catch light
+            emissive: 0x2266ff, // Blue emissive glow
+            emissiveIntensity: 0.8 // Strong emissive effect
         });
         
         // Create the atmosphere mesh
         const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
         globeGroup.add(atmosphere);
         
-        // Store reference for animation
+        // Add a dedicated glow light at the center of the globe
+        const atmosphereLight = new THREE.PointLight(0x4499ff, CONFIG.atmosphereGlow, atmosphereSize * 3);
+        atmosphereLight.position.set(0, 0, 0); // Centered
+        globeGroup.add(atmosphereLight);
+        
+        // Store references for animation
         globeGroup.userData.atmosphere = atmosphere;
+        globeGroup.userData.atmosphereLight = atmosphereLight;
         
         // Enhanced lighting for better glow and highlights
         const ambientLight = new THREE.AmbientLight(0x333344, 0.5); // Subtle bluish ambient light
@@ -740,10 +732,37 @@
                 // Also pulse the inner glow opacity for enhanced effect
                 innerGlowMaterial.opacity = 0.15 * (primaryPulse * 0.8 + 0.6);
                 
-                // Animate the atmosphere (now using standard material)
+                // Animate the atmosphere with better glow effect
+                // Pulse the opacity for subtle breathing effect
                 if (globeGroup.userData.atmosphere && globeGroup.userData.atmosphere.material) {
+                    // Adjust the opacity for subtle pulsing
                     globeGroup.userData.atmosphere.material.opacity = 
-                        CONFIG.atmosphereOpacity * 1.5 * (secondaryPulse * 0.3 + 0.85);
+                        CONFIG.atmosphereOpacity * (primaryPulse * 0.2 + 0.9);
+                    
+                    // Animate emissive intensity for changing glow
+                    globeGroup.userData.atmosphere.material.emissiveIntensity = 
+                        0.8 * (secondaryPulse * 0.3 + 0.85);
+                    
+                    // Slightly vary the color for a more natural effect
+                    const hue = 0.6 + (primaryPulse * 0.015); // Subtle hue shift in blue range
+                    const color = new THREE.Color().setHSL(hue, 0.8, 0.6);
+                    globeGroup.userData.atmosphere.material.emissive.copy(color);
+                }
+                
+                // Animate the dedicated atmosphere light for stronger effect
+                if (globeGroup.userData.atmosphereLight) {
+                    // Pulse the light intensity
+                    globeGroup.userData.atmosphereLight.intensity = 
+                        CONFIG.atmosphereGlow * (secondaryPulse * 0.4 + 0.8);
+                    
+                    // Move the light slightly for dynamic shadows
+                    const lightAngle = elapsedTime * 0.5;
+                    const lightRadius = radius * 0.1; // Small orbit radius
+                    globeGroup.userData.atmosphereLight.position.set(
+                        Math.sin(lightAngle) * lightRadius,
+                        Math.cos(lightAngle * 0.8) * lightRadius,
+                        Math.sin(lightAngle * 1.2) * lightRadius
+                    );
                 }
             }
             
