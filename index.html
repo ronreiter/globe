@@ -557,19 +557,23 @@
             // Use the provided color or default to cyan if no color is passed
             const impactColor = color || new THREE.Color(0x88eeff);
             
-            // Create a primary circle that will expand outward
-            const circleGeometry = new THREE.CircleGeometry(0.05, 16); // Smaller initial size
+            // Create a ring (bordered circle) that will expand outward
+            const ringGeometry = new THREE.RingGeometry(
+                0.045, // Inner radius - creates the border effect
+                0.05,  // Outer radius
+                24     // More segments for a smoother ring
+            );
             const circleMaterial = new THREE.MeshBasicMaterial({
                 color: impactColor, // Use the arc's end color
                 side: THREE.DoubleSide,
                 transparent: true,
-                opacity: 0.9,
+                opacity: 0.95, // Slightly higher opacity for better visibility of the thin ring
                 depthWrite: false, // Disable depth writing for better blending
                 blending: THREE.AdditiveBlending, // Use additive blending for glow effect
                 toneMapped: false // Disable tone mapping for brighter appearance
             });
             
-            const circle = new THREE.Mesh(circleGeometry, circleMaterial);
+            const circle = new THREE.Mesh(ringGeometry, circleMaterial);
             
             // Position at the destination point
             circle.position.copy(position);
@@ -580,8 +584,12 @@
             // Add to globe group
             globeGroup.add(circle);
             
-            // Create a secondary outer circle with a lighter version of the impact color
-            const outerCircleGeometry = new THREE.CircleGeometry(0.07, 16); // Smaller initial size
+            // Create a secondary outer ring with a lighter version of the impact color
+            const outerRingGeometry = new THREE.RingGeometry(
+                0.065, // Inner radius
+                0.075, // Outer radius - creates a larger border
+                24     // More segments for a smoother ring
+            );
             
             // Create a lighter but still colorful version of the impact color for the outer circle
             const lightenedColor = impactColor.clone().lerp(new THREE.Color(0xffffff), 0.4);
@@ -590,13 +598,13 @@
                 color: lightenedColor, // Lighter version of impact color
                 side: THREE.DoubleSide,
                 transparent: true,
-                opacity: 0.7,
+                opacity: 0.75, // Slightly increased opacity for better visibility of the thin ring
                 depthWrite: false, // Disable depth writing for better blending
                 blending: THREE.AdditiveBlending, // Use additive blending for glow effect
                 toneMapped: false // Disable tone mapping for brighter appearance
             });
             
-            const outerCircle = new THREE.Mesh(outerCircleGeometry, outerCircleMaterial);
+            const outerCircle = new THREE.Mesh(outerRingGeometry, outerCircleMaterial);
             
             // Position at the destination point but slightly behind the inner circle
             outerCircle.position.copy(position);
@@ -1019,8 +1027,14 @@
                         effect.circle.geometry.dispose();
                     }
                     
-                    // Create new geometry with updated size
-                    const newGeometry = new THREE.CircleGeometry(innerRadius, 16);
+                    // Create new ring geometry with updated size
+                    // Keep the ring border width proportional to its size
+                    const borderWidth = innerRadius * 0.2; // Border is 20% of the radius
+                    const newGeometry = new THREE.RingGeometry(
+                        innerRadius - borderWidth, // Inner radius of the ring 
+                        innerRadius,               // Outer radius of the ring
+                        24                         // More segments for a smoother ring
+                    );
                     effect.circle.geometry = newGeometry;
                     
                     // Update inner circle opacity (fade out towards the end)
@@ -1038,8 +1052,14 @@
                         effect.outerCircle.geometry.dispose();
                     }
                     
-                    // Create new geometry with updated size
-                    const newOuterGeometry = new THREE.CircleGeometry(outerRadius, 16);
+                    // Create new outer ring geometry with updated size
+                    // Keep the ring border width proportional to its size
+                    const outerBorderWidth = outerRadius * 0.15; // Slightly thinner border for outer ring
+                    const newOuterGeometry = new THREE.RingGeometry(
+                        outerRadius - outerBorderWidth, // Inner radius of the ring
+                        outerRadius,                    // Outer radius of the ring
+                        24                              // More segments for a smoother ring
+                    );
                     effect.outerCircle.geometry = newOuterGeometry;
                     
                     // Update outer circle opacity (fade out faster)
