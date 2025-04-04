@@ -19,7 +19,7 @@
             // Globe appearance
             globeRadius: 11,                  // Size of the globe
             globeSegments: 64,                // Resolution of the globe (32-128, lower for better performance)
-            atmosphereSize: 1.05,             // Size of atmosphere relative to globe (1.1-1.5)
+            atmosphereSize: 1.00,             // Size of atmosphere relative to globe (1.1-1.5)
             atmosphereOpacity: 0.18,          // Opacity of atmosphere (0.1-0.5)
             atmosphereGlow: 1.5,              // Intensity of atmosphere glow effect (1.0-3.0)
             
@@ -165,7 +165,7 @@
         globeGroup.add(innerGlow);
         
         // Add a single atmosphere with light-based glow effect
-        const atmosphereSize = radius * CONFIG.atmosphereSize;
+        const atmosphereSize = radius * CONFIG.atmosphereSize * 1.05; // Slightly larger for more extensive glow
         const atmosphereGeometry = new THREE.SphereGeometry(
             atmosphereSize,
             CONFIG.globeSegments, // Use same resolution as globe for smooth appearance
@@ -178,18 +178,20 @@
                 globeRadius: { value: radius },
                 atmosphereRadius: { value: atmosphereSize },
                 color: { value: new THREE.Color(0x4499ff) }, // Bright blue base color
-                glowColor: { value: new THREE.Color(0x77aaff) }, // Slightly lighter blue for the edge glow
-                opacity: { value: CONFIG.atmosphereOpacity * 1.2 }, // Slightly increased for better visibility
+                glowColor: { value: new THREE.Color(0x99bbff) }, // Brighter blue for more prominent edge glow
+                opacity: { value: CONFIG.atmosphereOpacity * 1.5 }, // Increased for more visible glow
                 power: { value: 2.0 }, // Controls the edge glow power (higher = sharper edge)
                 time: { value: 0.0 } // For subtle animation
             },
             vertexShader: `
                 varying vec3 vPosition;
                 varying vec3 vNormal;
+                varying vec3 vWorldPosition;
                 
                 void main() {
                     vNormal = normalize(normalMatrix * normal);
                     vPosition = position;
+                    vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
                     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
                 }
             `,
@@ -204,19 +206,36 @@
                 
                 varying vec3 vPosition;
                 varying vec3 vNormal;
+                varying vec3 vWorldPosition;
                 
                 void main() {
                     // Calculate distance from camera/view vector
                     float intensity = pow(0.75 - dot(vNormal, vec3(0, 0, 1.0)), power);
                     
-                    // Add time-based pulsing (subtle)
-                    float pulse = 1.0 + 0.08 * sin(time * 0.5);
+                    // Add time-based pulsing (enhanced)
+                    float pulse = 1.0 + 0.15 * sin(time * 0.5);
+                    
+                    // Add secondary pulse for more complex movement
+                    float secondaryPulse = 1.0 + 0.08 * sin(time * 0.8 + 1.5);
+                    
+                    // Create position-based variation
+                    float positionEffect = sin(vWorldPosition.x * 0.2 + time * 0.3) * 
+                                          cos(vWorldPosition.y * 0.2 + time * 0.2) *
+                                          sin(vWorldPosition.z * 0.2 + time * 0.4);
+                    
+                    // Apply position-based intensity variation
+                    intensity *= 1.0 + 0.2 * positionEffect;
                     
                     // Create the rim light/halo effect blended with base color
-                    vec3 finalColor = mix(color, glowColor, intensity) * pulse;
+                    vec3 finalColor = mix(color, glowColor, intensity) * pulse * secondaryPulse;
                     
-                    // Apply the glow with opacity falloff
-                    gl_FragColor = vec4(finalColor, min(1.0, opacity * intensity * 1.5));
+                    // Add subtle color variation based on position
+                    finalColor.r += 0.1 * sin(vWorldPosition.y * 0.1 + time * 0.2);
+                    finalColor.g += 0.05 * cos(vWorldPosition.z * 0.1 + time * 0.3);
+                    finalColor.b += 0.15 * sin(vWorldPosition.x * 0.1 + time * 0.4);
+                    
+                    // Apply the glow with enhanced opacity falloff
+                    gl_FragColor = vec4(finalColor, min(1.0, opacity * intensity * 2.0 * pulse));
                 }
             `,
             side: THREE.BackSide,
@@ -229,14 +248,20 @@
         const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
         globeGroup.add(atmosphere);
         
-        // Add a dedicated glow light at the center of the globe
-        const atmosphereLight = new THREE.PointLight(0x4499ff, CONFIG.atmosphereGlow, atmosphereSize * 3);
+        // Add a dedicated glow light at the center of the globe with increased intensity
+        const atmosphereLight = new THREE.PointLight(0x5599ff, CONFIG.atmosphereGlow * 1.5, atmosphereSize * 4);
         atmosphereLight.position.set(0, 0, 0); // Centered
         globeGroup.add(atmosphereLight);
+        
+        // Add a second atmosphere light for enhanced glow effect
+        const atmosphereLight2 = new THREE.PointLight(0x3377ff, CONFIG.atmosphereGlow * 0.8, atmosphereSize * 3.5);
+        atmosphereLight2.position.set(radius * 0.2, -radius * 0.1, radius * 0.1); // Slightly offset
+        globeGroup.add(atmosphereLight2);
         
         // Store references for animation
         globeGroup.userData.atmosphere = atmosphere;
         globeGroup.userData.atmosphereLight = atmosphereLight;
+        globeGroup.userData.atmosphereLight2 = atmosphereLight2;
         
         // Enhanced lighting for better glow and highlights
         const ambientLight = new THREE.AmbientLight(0x333344, 0.5); // Subtle bluish ambient light
@@ -247,8 +272,8 @@
         directionalLight.position.set(8, 8, 8);
         scene.add(directionalLight);
         
-        // Enhanced blue backlight for stronger glow effect - increased intensity
-        const backLight = new THREE.PointLight(0x0066ff, 3.5, 65);
+        // Enhanced blue backlight for stronger glow effect - significantly increased intensity
+        const backLight = new THREE.PointLight(0x0077ff, 4.5, 75);
         backLight.position.set(-20, 8, -20);
         scene.add(backLight);
         
@@ -602,8 +627,8 @@
             
             // Create a ring (bordered circle) that will expand outward
             const ringGeometry = new THREE.RingGeometry(
-                0.025, // Inner radius - creates the border effect
-                0.035,  // Outer radius
+                0.12, // Inner radius - creates the border effect
+                0.18,  // Outer radius
                 24     // More segments for a smoother ring
             );
             const circleMaterial = new THREE.MeshBasicMaterial({
@@ -621,7 +646,7 @@
             // Position at the destination point
             circle.position.copy(position);
             
-            // Make circle face outward from globe center
+            // Make circle tangent to the globe surface
             circle.lookAt(new THREE.Vector3(0, 0, 0));
             
             // Add to globe group
@@ -629,8 +654,8 @@
             
             // Create a secondary outer ring with a lighter version of the impact color
             const outerRingGeometry = new THREE.RingGeometry(
-                0.025, // Inner radius
-                0.035, // Outer radius - creates a larger border
+                0.12, // Inner radius
+                0.18, // Outer radius - creates a larger border
                 24     // More segments for a smoother ring
             );
             
@@ -656,21 +681,73 @@
             const directionToCenter = new THREE.Vector3(0, 0, 0).sub(position).normalize();
             outerCircle.position.add(directionToCenter.multiplyScalar(0.01));
             
-            // Make circle face outward from globe center
+            // Make circle tangent to the globe surface
             outerCircle.lookAt(new THREE.Vector3(0, 0, 0));
             
             // Add to globe group
             globeGroup.add(outerCircle);
             
+            // Create a permanent bullseye target at the landing point
+            // Center filled circle
+            const centerDotGeometry = new THREE.CircleGeometry(0.18, 24);
+            const centerDotMaterial = new THREE.MeshBasicMaterial({
+                color: impactColor,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.85,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+                toneMapped: false
+            });
+            
+            const centerDot = new THREE.Mesh(centerDotGeometry, centerDotMaterial);
+            centerDot.position.copy(position);
+            
+            // Move it slightly away from globe to avoid z-fighting
+            const directionFromCenter = position.clone().normalize();
+            centerDot.position.add(directionFromCenter.multiplyScalar(0.008));
+            
+            // Make it tangent to the globe surface
+            centerDot.lookAt(new THREE.Vector3(0, 0, 0));
+            
+            // Add to globe group
+            globeGroup.add(centerDot);
+            
+            // Middle ring of the bullseye
+            const middleRingGeometry = new THREE.RingGeometry(0.22, 0.3, 24);
+            const middleRingMaterial = new THREE.MeshBasicMaterial({
+                color: lightenedColor,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.75,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+                toneMapped: false
+            });
+            
+            const middleRing = new THREE.Mesh(middleRingGeometry, middleRingMaterial);
+            middleRing.position.copy(centerDot.position);
+            middleRing.lookAt(new THREE.Vector3(0, 0, 0));
+            
+            // Add to globe group
+            globeGroup.add(middleRing);
+            
             // Return object with properties for animation
             return {
-                circle: circle,
+                circle: circle,                    // Expanding ring 1
                 circleMaterial: circleMaterial,
-                outerCircle: outerCircle,
+                outerCircle: outerCircle,          // Expanding ring 2
                 outerCircleMaterial: outerCircleMaterial,
+                centerDot: centerDot,              // Permanent bullseye center
+                centerDotMaterial: centerDotMaterial,
+                middleRing: middleRing,            // Permanent bullseye outer ring
+                middleRingMaterial: middleRingMaterial,
                 age: 0,
-                maxLife: 0.5 + Math.random() * 0.3,  // Shorter lifespan (0.5-0.8 seconds)
-                startTime: performance.now() / 1000  // Current time in seconds
+                maxLife: 0.5 + Math.random() * 0.3,  // Shorter lifespan for expanding rings (0.5-0.8 seconds)
+                startTime: performance.now() / 1000,  // Current time in seconds
+                arcLifetime: 0, // Will be set by the arc
+                position: position.clone(), // Store position for reference
+                linkedToArc: false // Flag to indicate if this effect is linked to an arc
             };
         }
         
@@ -858,9 +935,9 @@
                     // Update the time uniform for the shader animation
                     globeGroup.userData.atmosphere.material.uniforms.time.value = seconds;
                     
-                    // Pulse the opacity for subtle breathing effect
+                    // Pulse the opacity for enhanced breathing effect
                     globeGroup.userData.atmosphere.material.uniforms.opacity.value = 
-                        CONFIG.atmosphereOpacity * 1.2 * (primaryPulse * 0.2 + 0.9);
+                        CONFIG.atmosphereOpacity * 1.5 * (primaryPulse * 0.3 + 0.9);
                     
                     // Adjust the power parameter for varying glow sharpness
                     globeGroup.userData.atmosphere.material.uniforms.power.value = 
@@ -872,20 +949,37 @@
                     globeGroup.userData.atmosphere.material.uniforms.glowColor.value.copy(glowColor);
                 }
                 
-                // Animate the dedicated atmosphere light for stronger effect
+                // Animate the dedicated atmosphere lights for stronger effect
                 if (globeGroup.userData.atmosphereLight) {
-                    // Pulse the light intensity
+                    // Pulse the main light intensity
                     globeGroup.userData.atmosphereLight.intensity = 
-                        CONFIG.atmosphereGlow * (secondaryPulse * 0.4 + 0.8);
+                        CONFIG.atmosphereGlow * 1.5 * (secondaryPulse * 0.5 + 0.8);
                     
                     // Move the light slightly for dynamic shadows
                     const lightAngle = elapsedTime * 0.5;
-                    const lightRadius = radius * 0.1; // Small orbit radius
+                    const lightRadius = radius * 0.15; // Increased orbit radius
                     globeGroup.userData.atmosphereLight.position.set(
                         Math.sin(lightAngle) * lightRadius,
                         Math.cos(lightAngle * 0.8) * lightRadius,
                         Math.sin(lightAngle * 1.2) * lightRadius
                     );
+                    
+                    // Animate the second light with different pattern
+                    if (globeGroup.userData.atmosphereLight2) {
+                        // Use different pulse pattern for second light
+                        const altPulse = Math.sin(elapsedTime * 0.7 + 1.0) * 0.3 + 1.0;
+                        globeGroup.userData.atmosphereLight2.intensity = 
+                            CONFIG.atmosphereGlow * 0.8 * altPulse;
+                        
+                        // Move in a different orbital pattern
+                        const light2Angle = elapsedTime * 0.3 + Math.PI; // Offset phase
+                        const light2Radius = radius * 0.25;
+                        globeGroup.userData.atmosphereLight2.position.set(
+                            Math.cos(light2Angle * 1.1) * light2Radius,
+                            Math.sin(light2Angle * 0.9) * light2Radius * 0.7,
+                            Math.sin(light2Angle * 1.3) * light2Radius
+                        );
+                    }
                 }
             }
             
@@ -920,8 +1014,37 @@
                     // If we've reached 90% of the growth and haven't created an impact effect yet
                     if (growthProgress >= 0.9 && !arc.impactCreated) {
                         // Create impact effect at destination with the arc's end color
-                        impactEffects.push(createImpactEffect(arc.destinationPoint, arc.endColor));
+                        const effect = createImpactEffect(arc.destinationPoint, arc.endColor);
+                        // Link the effect to this arc's lifetime
+                        effect.arcLifetime = arc.maxLife;
+                        effect.linkedToArc = true; // Mark this effect as linked to an arc
+                        effect.parentArc = arc; // Two-way reference to help with cleanup
+                        impactEffects.push(effect);
                         arc.impactCreated = true; // Mark that we've created the impact
+                        arc.impactEffect = effect; // Store reference to the effect
+                        
+                        // Add a pulse animation to the bullseye for emphasis
+                        setTimeout(() => {
+                            if (effect.centerDot && effect.middleRing) {
+                                const originalScale = effect.centerDot.scale.clone();
+                                let time = 0;
+                                const duration = 0.5; // Duration in seconds
+                                const pulse = () => {
+                                    time += 0.016; // ~60fps
+                                    if (time < duration) {
+                                        const progress = time / duration;
+                                        const scale = 1 + Math.sin(progress * Math.PI) * 0.5;
+                                        effect.centerDot.scale.set(scale, scale, 1);
+                                        effect.middleRing.scale.set(scale, scale, 1);
+                                        requestAnimationFrame(pulse);
+                                    } else {
+                                        effect.centerDot.scale.copy(originalScale);
+                                        effect.middleRing.scale.copy(originalScale);
+                                    }
+                                };
+                                pulse();
+                            }
+                        }, 50); // Small delay to ensure elements are added to scene
                     }
                     
                     // Calculate how many points should be visible
@@ -1051,6 +1174,40 @@
                 if (arc.age >= arc.growDuration + arc.maxLife) {
                     globeGroup.remove(arc.arc);
                     arc.arc.geometry.dispose();
+                    
+                    // If this arc has a linked impact effect, remove the bullseye elements
+                    if (arc.impactEffect) {
+                        console.log("Removing bullseye for arc");
+                        
+                        // Remove the bullseye center dot
+                        if (arc.impactEffect.centerDot) {
+                            console.log("Removing centerDot");
+                            globeGroup.remove(arc.impactEffect.centerDot);
+                            arc.impactEffect.centerDotMaterial.dispose();
+                            arc.impactEffect.centerDot.geometry.dispose();
+                            arc.impactEffect.centerDot = null; // Clear reference
+                        }
+                        
+                        // Remove the bullseye outer ring
+                        if (arc.impactEffect.middleRing) {
+                            console.log("Removing middleRing");
+                            globeGroup.remove(arc.impactEffect.middleRing);
+                            arc.impactEffect.middleRingMaterial.dispose();
+                            arc.impactEffect.middleRing.geometry.dispose();
+                            arc.impactEffect.middleRing = null; // Clear reference
+                        }
+                        
+                        // Find and remove the effect from impactEffects array
+                        const effectIndex = impactEffects.indexOf(arc.impactEffect);
+                        if (effectIndex > -1) {
+                            console.log("Removing effect from array at index", effectIndex);
+                            impactEffects.splice(effectIndex, 1);
+                        }
+                        
+                        // Clear the reference
+                        arc.impactEffect = null;
+                    }
+                    
                     arcs.splice(i, 1);
                 }
             }
@@ -1058,14 +1215,42 @@
             // Update impact effects
             for (let i = impactEffects.length - 1; i >= 0; i--) {
                 const effect = impactEffects[i];
+                
+                // Safety check: if this effect is linked to an arc that no longer exists
+                // or is about to be removed, clean it up immediately
+                if (effect.linkedToArc && effect.parentArc) {
+                    const arcIndex = arcs.indexOf(effect.parentArc);
+                    if (arcIndex === -1 || effect.parentArc.age >= effect.parentArc.growDuration + effect.parentArc.maxLife) {
+                        console.log("Cleanup: Linked impact effect found without live parent arc");
+                        
+                        // Remove bullseye center dot
+                        if (effect.centerDot) {
+                            globeGroup.remove(effect.centerDot);
+                            effect.centerDotMaterial.dispose();
+                            effect.centerDot.geometry.dispose();
+                        }
+                        
+                        // Remove bullseye outer ring
+                        if (effect.middleRing) {
+                            globeGroup.remove(effect.middleRing);
+                            effect.middleRingMaterial.dispose();
+                            effect.middleRing.geometry.dispose();
+                        }
+                        
+                        // Remove the effect from the array and continue to next iteration
+                        impactEffects.splice(i, 1);
+                        continue;
+                    }
+                }
+                
                 effect.age += 0.02; // Match arc update rate
                 
                 if (effect.age < effect.maxLife) {
                     // Calculate current size based on age (expand over time)
                     const progress = effect.age / effect.maxLife;
                     
-                    // Inner circle - expands over time but stays smaller
-                    const innerRadius = progress * radius * CONFIG.impactSize; // Use configurable impact size
+                    // Inner circle - expands over time but starts larger
+                    const innerRadius = (0.15 + progress * radius * CONFIG.impactSize); // Use configurable impact size with minimum
                     
                     // Update inner circle geometry
                     globeGroup.remove(effect.circle);
@@ -1119,13 +1304,13 @@
                     effect.outerCircle.position.copy(effect.circle.position);
                     effect.outerCircle.position.add(directionToCenter.multiplyScalar(0.01));
                     
-                    // Make sure the circles face outward
+                    // Make sure the circles are tangent to the globe surface
                     effect.circle.lookAt(new THREE.Vector3(0, 0, 0));
                     effect.outerCircle.lookAt(new THREE.Vector3(0, 0, 0));
                 } else {
                     // Smoother transition at the end of effect - fade to zero before removing
                     if (effect.circleMaterial.opacity > 0.05) {
-                        // Rapidly fade out remaining opacity
+                        // Rapidly fade out remaining opacity of the expanding rings
                         effect.circleMaterial.opacity *= 0.7;
                         effect.outerCircleMaterial.opacity *= 0.7;
                         
@@ -1133,21 +1318,47 @@
                         continue;
                     }
                     
-                    // Remove old impact effects - inner circle
+                    // Remove expanding rings now
                     globeGroup.remove(effect.circle);
                     if (effect.circle.geometry) {
                         effect.circle.geometry.dispose();
                     }
                     effect.circleMaterial.dispose();
                     
-                    // Remove outer circle
+                    // Remove outer expanding circle
                     globeGroup.remove(effect.outerCircle);
                     if (effect.outerCircle.geometry) {
                         effect.outerCircle.geometry.dispose();
                     }
                     effect.outerCircleMaterial.dispose();
                     
-                    impactEffects.splice(i, 1);
+                    // Mark expanding rings as removed
+                    effect.ringsRemoved = true;
+                    
+                    // For effects not linked to arcs, we clean up everything immediately
+                    // Arc-linked effects will be cleaned up when their arc disappears
+                    if (!effect.linkedToArc) {
+                        console.log("Removing unlinked impact effect");
+                        
+                        // Remove bullseye center dot
+                        if (effect.centerDot) {
+                            globeGroup.remove(effect.centerDot);
+                            effect.centerDotMaterial.dispose();
+                            effect.centerDot.geometry.dispose();
+                            effect.centerDot = null; // Clear reference
+                        }
+                        
+                        // Remove bullseye outer ring
+                        if (effect.middleRing) {
+                            globeGroup.remove(effect.middleRing);
+                            effect.middleRingMaterial.dispose();
+                            effect.middleRing.geometry.dispose();
+                            effect.middleRing = null; // Clear reference
+                        }
+                        
+                        // Remove the effect from the array
+                        impactEffects.splice(i, 1);
+                    }
                 }
                 }
             } // Close the frame skipping condition
