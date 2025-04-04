@@ -18,8 +18,8 @@
             // Globe appearance
             globeRadius: 11,                  // Size of the globe
             globeSegments: 64,                // Resolution of the globe (32-128, lower for better performance)
-            atmosphereSize: 1.25,             // Size of atmosphere relative to globe (1.1-1.5)
-            atmosphereOpacity: 0.2,           // Opacity of atmosphere (0.1-0.5)
+            atmosphereSize: 1.35,             // Size of atmosphere relative to globe (1.1-1.5)
+            atmosphereOpacity: 0.3,           // Opacity of atmosphere (0.1-0.5)
             
             // Land points
             numPoints: 25000,                 // Maximum points to generate (3000-25000, lower for better performance)
@@ -56,8 +56,8 @@
             CONFIG.dotSegments = 4;
             CONFIG.dotSize = 0.07;          // Slightly larger dots for better visibility with fewer points
             CONFIG.hoverEffect = 0.08;      // Reduce hover effect for better performance
-            CONFIG.atmosphereSize = 1.15;   // Smaller atmosphere for performance
-            CONFIG.atmosphereOpacity = 0.15; // Reduced opacity for performance
+            CONFIG.atmosphereSize = 1.2;    // Smaller atmosphere for performance
+            CONFIG.atmosphereOpacity = 0.25; // Reduced opacity for performance
             CONFIG.maxConcurrentArcs = 25;  // Still allow many arcs but reduced from normal mode
             CONFIG.arcFrequency = 0.3;      // Slightly less frequent arc creation for performance
             CONFIG.arcTubeSegments = 12;    // Increased for smoother arcs even in performance mode
@@ -105,7 +105,7 @@
         
         // Set up the scene, camera, and renderer
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000204); // Darker blue-black background for better contrast
+        scene.background = new THREE.Color(0x0D2E4E); // Deep blue background as requested
         
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         // Create renderer with performance optimizations
@@ -169,61 +169,26 @@
         const atmosphereSize = radius * CONFIG.atmosphereSize;
         const atmosphereGeometry = new THREE.SphereGeometry(
             atmosphereSize,
-            Math.max(24, Math.floor(CONFIG.globeSegments * 0.6)), // Slightly higher res for atmosphere 
-            Math.max(24, Math.floor(CONFIG.globeSegments * 0.6))
+            Math.max(32, Math.floor(CONFIG.globeSegments * 0.75)), // Higher res for atmosphere 
+            Math.max(32, Math.floor(CONFIG.globeSegments * 0.75))
         );
         
-        // Create a shader material for the atmosphere with a gradient
-        const atmosphereMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                globeRadius: { value: radius },
-                atmosphereRadius: { value: atmosphereSize },
-                atmosphereColor: { value: new THREE.Color(0x3388ff) }, // Blue atmosphere
-                opacity: { value: CONFIG.atmosphereOpacity }
-            },
-            vertexShader: `
-                varying vec3 vPosition;
-                
-                void main() {
-                    vPosition = position;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform float globeRadius;
-                uniform float atmosphereRadius;
-                uniform vec3 atmosphereColor;
-                uniform float opacity;
-                
-                varying vec3 vPosition;
-                
-                void main() {
-                    // Calculate distance from center of globe
-                    float distance = length(vPosition);
-                    
-                    // Create a gradient based on distance from globe surface
-                    float normalizedDistance = (distance - globeRadius) / (atmosphereRadius - globeRadius);
-                    
-                    // Gradient intensity - stronger near the globe, fading outward
-                    // Using a power function for a more realistic falloff
-                    float intensity = pow(1.0 - normalizedDistance, 3.0);
-                    
-                    // Combine color and intensity
-                    gl_FragColor = vec4(atmosphereColor, intensity * opacity);
-                }
-            `,
+        // Create a simpler material for the atmosphere that will be more visible
+        const atmosphereMaterial = new THREE.MeshBasicMaterial({
+            color: 0x4499ff, // Brighter blue atmosphere
             transparent: true,
-            blending: THREE.AdditiveBlending,
-            side: THREE.BackSide // Render the inside to create a volume effect
+            opacity: CONFIG.atmosphereOpacity * 1.5, // Increase opacity to make it more visible
+            side: THREE.BackSide, // Render the inside to create a volume effect
+            blending: THREE.AdditiveBlending, // Additive blending for glow effect
+            depthWrite: false // Disable depth writing for better blending
         });
         
         // Create the atmosphere mesh
         const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
         globeGroup.add(atmosphere);
         
-        // Store references for animation
+        // Store reference for animation
         globeGroup.userData.atmosphere = atmosphere;
-        globeGroup.userData.atmosphereMaterial = atmosphereMaterial;
         
         // Enhanced lighting for better glow and highlights
         const ambientLight = new THREE.AmbientLight(0x333344, 0.5); // Subtle bluish ambient light
@@ -775,10 +740,10 @@
                 // Also pulse the inner glow opacity for enhanced effect
                 innerGlowMaterial.opacity = 0.15 * (primaryPulse * 0.8 + 0.6);
                 
-                // Animate the atmosphere
-                if (globeGroup.userData.atmosphereMaterial) {
-                    globeGroup.userData.atmosphereMaterial.uniforms.opacity.value = 
-                        CONFIG.atmosphereOpacity * (secondaryPulse * 0.2 + 0.9);
+                // Animate the atmosphere (now using standard material)
+                if (globeGroup.userData.atmosphere && globeGroup.userData.atmosphere.material) {
+                    globeGroup.userData.atmosphere.material.opacity = 
+                        CONFIG.atmosphereOpacity * 1.5 * (secondaryPulse * 0.3 + 0.85);
                 }
             }
             
