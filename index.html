@@ -38,6 +38,7 @@
             numPoints: 25000,                 // Maximum points to generate (3000-25000, lower for better performance)
             dotSize: 0.06,                    // Size of land dots (0.05-0.1)
             dotSegments: 6,                   // Land dot geometry segments (4-8, lower for better performance)
+            dotOpacity: 0.5,                  // Opacity of land dots (0.1-1.0)
             hoverEffect: 0.05,                // Strength of dot hover effect (0.1-0.5)
             hoverPull: 0.45,                  // The focus of the hover effect
             
@@ -84,6 +85,7 @@
                     // Reduce complexity but not as drastically as high performance mode
                     CONFIG.globeSegments = Math.max(32, CONFIG.globeSegments * 0.7);
                     CONFIG.numPoints = Math.max(15000, CONFIG.numPoints * 0.7);
+                    CONFIG.dotOpacity = Math.max(0.6, CONFIG.dotOpacity * 0.85); // Reduce dot opacity for better performance
                     CONFIG.maxConcurrentArcs = Math.max(25, CONFIG.maxConcurrentArcs * 0.8);
                     CONFIG.arcPointsCount = Math.max(25, CONFIG.arcPointsCount * 0.8);
                     CONFIG.skipFrames = 1; // Skip every other frame
@@ -231,7 +233,7 @@
         
         // Position camera with a higher angle view
         camera.position.z = 25;
-        camera.position.y = 15; // Add elevation for top-down angle
+        camera.position.y = 10; // Add elevation for top-down angle
         camera.lookAt(0, 0, 0); // Ensure camera is looking at the center of the globe
         
         // Load land coordinates (simplified version)
@@ -257,7 +259,7 @@
                 color: 0xbbeeff, // Light blue tint that contrasts with darker globe
                 side: THREE.DoubleSide, // Make sure circles are visible from both sides
                 transparent: true,
-                opacity: 0.95, // More opaque for better visibility against darker globe
+                opacity: CONFIG.dotOpacity, // Use the configurable opacity
                 depthTest: true, // Enable depth testing for proper occlusion
                 depthWrite: true, // Ensure dots write to depth buffer
                 blending: THREE.NormalBlending // Use normal blending for better performance
