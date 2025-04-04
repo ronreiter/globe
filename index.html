@@ -25,9 +25,9 @@
             dotSegments: 6,                   // Land dot geometry segments (4-8, lower for better performance)
             
             // Arcs
-            maxConcurrentArcs: 18,            // Maximum concurrent arcs (6-20, lower for better performance)
-            arcFrequency: 0.5,                // How often new arcs appear (higher = less frequent)
-            arcTimingVariation: 0.3,          // Randomness in arc timing (0-1, higher = more random)
+            maxConcurrentArcs: 40,            // Maximum concurrent arcs (6-40, lower for better performance)
+            arcFrequency: 0.2,                // How often new arcs appear (higher = less frequent)
+            arcTimingVariation: 0.15,         // Randomness in arc timing (0-1, higher = more random)
             arcTubeSegments: 12,              // Maximum tube segments for arcs (6-16, lower for better performance) 
             arcRadialSegments: 4,             // Radial segments for arc tubes (3-8, lower for better performance)
             arcThickness: 0.06,               // Thickness of arcs (0.04-0.1)
@@ -36,7 +36,7 @@
             // Animation and behavior
             rotationSpeed: 0.002,             // Speed of auto-rotation (0.001-0.003)
             arcGrowDuration: 0.7,             // Base duration for arc growth in seconds (0.5-1.5)
-            arcRetreatDuration: 1.0,          // Base duration for arc retreat in seconds (0.8-2.0)
+            arcRetreatDuration: 2.0,          // Base duration for arc retreat in seconds (0.8-3.0)
             
             // Impact effects
             impactSize: 0.08,                 // Maximum impact size as fraction of globe radius (0.05-0.2)
@@ -51,7 +51,8 @@
             CONFIG.globeSegments = 32;
             CONFIG.numPoints = 4000;
             CONFIG.dotSegments = 4;
-            CONFIG.maxConcurrentArcs = 10; // Still allow more arcs but reduced from normal mode
+            CONFIG.maxConcurrentArcs = 25; // Still allow many arcs but reduced from normal mode
+            CONFIG.arcFrequency = 0.3; // Slightly less frequent arc creation for performance
             CONFIG.arcTubeSegments = 8;
             CONFIG.arcRadialSegments = 3;
             CONFIG.arcPointsCount = 25;
@@ -543,9 +544,10 @@
                 rimLight.intensity = 1.0 * pulseIntensity;
             }
             
-            // Add random arcs periodically, balanced for visuals and performance
-            if (seconds - lastArcTime > CONFIG.arcFrequency + (Math.random() * CONFIG.arcTimingVariation) && 
-                arcs.length < CONFIG.maxConcurrentArcs) { // Use configurable settings with better randomization
+            // Add random arcs more aggressively to ensure continuous flow
+            if ((seconds - lastArcTime > CONFIG.arcFrequency + (Math.random() * CONFIG.arcTimingVariation)) || 
+                // Force arc creation if we're significantly below the maximum
+                (arcs.length < CONFIG.maxConcurrentArcs * 0.7 && seconds - lastArcTime > 0.1)) {
                 addRandomArc();
                 lastArcTime = seconds;
             }
@@ -825,6 +827,38 @@
             renderer.render(scene, camera);
         }
         
+        // Function to initialize multiple arcs at startup
+        function initializeArcs() {
+            // Create a initial batch of arcs to start with
+            const initialArcCount = Math.floor(CONFIG.maxConcurrentArcs * 0.5); // Start with 50% of max arcs
+            console.log(`Creating ${initialArcCount} initial arcs...`);
+            
+            // Create arcs with varied growth progress
+            for (let i = 0; i < initialArcCount; i++) {
+                // Create the arc
+                addRandomArc();
+                
+                // Set random initial age so arcs don't all grow/fade simultaneously
+                if (arcs.length > 0) {
+                    const randomProgress = Math.random();
+                    const arc = arcs[arcs.length - 1];
+                    
+                    // Set up initial age to have arcs in various stages
+                    if (randomProgress < 0.7) {
+                        // 70% of initial arcs in growth phase
+                        arc.age = arc.growDuration * Math.random() * 0.9;
+                    } else {
+                        // 30% in retreat phase
+                        arc.age = arc.growDuration + (Math.random() * arc.maxLife * 0.5);
+                    }
+                }
+            }
+        }
+        
+        // Initialize arcs before starting animation
+        initializeArcs();
+        
+        // Start animation loop
         animate(0);
     </script>
 </body>
