@@ -20,8 +20,8 @@
             globeSegments: 64,                // Resolution of the globe (32-128, lower for better performance)
             
             // Land points
-            numPoints: 8000,                  // Maximum points to generate (3000-10000, lower for better performance)
-            dotSize: 0.08,                    // Size of land dots (0.05-0.1)
+            numPoints: 18000,                 // Maximum points to generate (3000-25000, lower for better performance)
+            dotSize: 0.06,                    // Size of land dots (0.05-0.1)
             dotSegments: 6,                   // Land dot geometry segments (4-8, lower for better performance)
             
             // Arcs
@@ -49,10 +49,11 @@
         // Enable high performance mode if needed
         if (CONFIG.useHighPerformanceMode) {
             CONFIG.globeSegments = 32;
-            CONFIG.numPoints = 4000;
+            CONFIG.numPoints = 8000;        // Increased from 4000 for better land coverage
             CONFIG.dotSegments = 4;
-            CONFIG.maxConcurrentArcs = 25; // Still allow many arcs but reduced from normal mode
-            CONFIG.arcFrequency = 0.3; // Slightly less frequent arc creation for performance
+            CONFIG.dotSize = 0.07;          // Slightly larger dots for better visibility with fewer points
+            CONFIG.maxConcurrentArcs = 25;  // Still allow many arcs but reduced from normal mode
+            CONFIG.arcFrequency = 0.3;      // Slightly less frequent arc creation for performance
             CONFIG.arcTubeSegments = 8;
             CONFIG.arcRadialSegments = 3;
             CONFIG.arcPointsCount = 25;
@@ -182,7 +183,10 @@
                             color: 0xddddff, // Slight blue tint to match the globe better
                             side: THREE.DoubleSide, // Make sure circles are visible from both sides
                             transparent: true,
-                            opacity: 0.85 // Slightly more transparent to reduce shine
+                            opacity: 0.9, // More opaque for better visibility with smaller size
+                            // Add depth test for better rendering with higher dot density
+                            depthTest: true,
+                            depthWrite: true
                         });
                         const dot = new THREE.Mesh(dotGeometry, dotMaterial);
                         
