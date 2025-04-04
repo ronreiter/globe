@@ -15,12 +15,13 @@
     <script>
         // Configuration parameters for performance/quality tradeoff
         const CONFIG = {
+            backgroundColor: 0x081b2e,
             // Globe appearance
             globeRadius: 11,                  // Size of the globe
             globeSegments: 64,                // Resolution of the globe (32-128, lower for better performance)
-            atmosphereSize: 1.15,             // Size of atmosphere relative to globe (1.1-1.5)
+            atmosphereSize: 1.05,             // Size of atmosphere relative to globe (1.1-1.5)
             atmosphereOpacity: 0.18,          // Opacity of atmosphere (0.1-0.5)
-            atmosphereGlow: 1.2,              // Intensity of atmosphere glow effect (1.0-3.0)
+            atmosphereGlow: 1.5,              // Intensity of atmosphere glow effect (1.0-3.0)
             
             // Arc color palette (in hex format with adjusted brightness and more saturation)
             arcColors: [
@@ -103,7 +104,7 @@
         
         // Set up the scene, camera, and renderer
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0D2E4E); // Deep blue background as requested
+        scene.background = new THREE.Color(CONFIG.backgroundColor); 
         
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         // Create renderer with performance optimizations
