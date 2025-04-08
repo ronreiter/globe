@@ -8,9 +8,235 @@
         body { margin: 0; overflow: hidden; }
         canvas { display: block; cursor: grab; }
         canvas:active { cursor: grabbing; }
+        
+        /* Debug Panel Styles */
+        #debug-toggle {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        #fps-counter {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 100;
+        }
+        
+        #debug-panel {
+            position: fixed;
+            top: 50px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border-radius: 4px;
+            padding: 15px;
+            width: 300px;
+            max-height: 80vh;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            display: none;
+            z-index: 99;
+        }
+        
+        #debug-panel h3 {
+            margin: 0 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #444;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group h4 {
+            margin: 0 0 5px 0;
+            color: #aaa;
+        }
+        
+        .control-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .control-item label {
+            flex: 1;
+        }
+        
+        .control-item input, .control-item select {
+            width: 50%;
+            background: #222;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 3px;
+        }
+        
+        .control-item input[type="checkbox"] {
+            width: auto;
+        }
+        
+        .control-item input[type="range"] {
+            background: transparent;
+        }
+        
+        /* Disable pointer events on canvas when interacting with debug panel */
+        body.debug-panel-active canvas {
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
+    <div id="fps-counter">FPS: 0</div>
+    <button id="debug-toggle">Debug Panel</button>
+    <div id="debug-panel">
+        <h3>Debug Controls</h3>
+        
+        <div class="control-group">
+            <h4>Globe Appearance</h4>
+            <div class="control-item">
+                <label>Globe Radius</label>
+                <input type="range" id="globeRadius" min="8" max="15" step="0.5" value="11">
+            </div>
+            <div class="control-item">
+                <label>Globe Segments</label>
+                <input type="range" id="globeSegments" min="16" max="128" step="8" value="64">
+            </div>
+            <div class="control-item">
+                <label>Show Atmosphere</label>
+                <input type="checkbox" id="showAtmosphere" checked>
+            </div>
+            <div class="control-item">
+                <label>Atmosphere Opacity</label>
+                <input type="range" id="atmosphereOpacity" min="0.05" max="0.5" step="0.01" value="0.18">
+            </div>
+            <div class="control-item">
+                <label>Atmosphere Glow</label>
+                <input type="range" id="atmosphereGlow" min="0.5" max="3" step="0.1" value="1.5">
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h4>Land Points</h4>
+            <div class="control-item">
+                <label>Show Land Points</label>
+                <input type="checkbox" id="showLandPoints" checked>
+            </div>
+            <div class="control-item">
+                <label>Number of Points</label>
+                <input type="range" id="numPoints" min="3000" max="50000" step="1000" value="50000">
+            </div>
+            <div class="control-item">
+                <label>Dot Size</label>
+                <input type="range" id="dotSize" min="0.01" max="0.2" step="0.01" value="0.05">
+            </div>
+            <div class="control-item">
+                <label>Dot Opacity</label>
+                <input type="range" id="dotOpacity" min="0.1" max="1.0" step="0.05" value="0.4">
+            </div>
+            <div class="control-item">
+                <label>Hover Effect</label>
+                <input type="range" id="hoverEffect" min="0.01" max="0.5" step="0.01" value="0.05">
+            </div>
+            <div class="control-item">
+                <label>Disable Hover Processing</label>
+                <input type="checkbox" id="disableHover">
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h4>Arcs</h4>
+            <div class="control-item">
+                <label>Show Arcs</label>
+                <input type="checkbox" id="showArcs" checked>
+            </div>
+            <div class="control-item">
+                <label>Max Concurrent Arcs</label>
+                <input type="range" id="maxConcurrentArcs" min="5" max="40" step="1" value="10">
+            </div>
+            <div class="control-item">
+                <label>Arc Frequency</label>
+                <input type="range" id="arcFrequency" min="0.1" max="1.0" step="0.05" value="0.4">
+            </div>
+            <div class="control-item">
+                <label>Arc Thickness</label>
+                <input type="range" id="arcThickness" min="0.01" max="0.1" step="0.002" value="0.038">
+            </div>
+            <div class="control-item">
+                <label>Arc Points</label>
+                <input type="range" id="arcPointsCount" min="10" max="100" step="5" value="80">
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h4>Animation</h4>
+            <div class="control-item">
+                <label>Rotation Speed</label>
+                <input type="range" id="rotationSpeed" min="0" max="0.01" step="0.0005" value="0.002">
+            </div>
+            <div class="control-item">
+                <label>Arc Grow Duration</label>
+                <input type="range" id="arcGrowDuration" min="0.3" max="2.5" step="0.1" value="1.3">
+            </div>
+            <div class="control-item">
+                <label>Arc Retreat Duration</label>
+                <input type="range" id="arcRetreatDuration" min="0.5" max="4.0" step="0.1" value="2.8">
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h4>Rendering</h4>
+            <div class="control-item">
+                <label>High Performance Mode</label>
+                <input type="checkbox" id="useHighPerformanceMode">
+            </div>
+            <div class="control-item">
+                <label>Skip Frames</label>
+                <input type="range" id="skipFrames" min="0" max="4" step="1" value="0">
+            </div>
+            <div class="control-item">
+                <label>Pixel Ratio</label>
+                <input type="range" id="pixelRatio" min="0.5" max="2" step="0.1" value="1">
+            </div>
+            <div class="control-item">
+                <label>Disable Lights</label>
+                <input type="checkbox" id="disableLights">
+            </div>
+            <div class="control-item">
+                <label>Disable Animations</label>
+                <input type="checkbox" id="freezeAnimations">
+            </div>
+            <div class="control-item">
+                <label>Disable Auto-Rotation</label>
+                <input type="checkbox" id="disableRotation">
+            </div>
+            <div class="control-item">
+                <label>Uncap FPS</label>
+                <input type="checkbox" id="uncapFps">
+            </div>
+            <div class="control-item">
+                <label>Show Detailed Metrics</label>
+                <input type="checkbox" id="showDetailedMetrics">
+            </div>
+        </div>
+    </div>
     <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
     <script>
         // Configuration parameters for performance/quality tradeoff
@@ -264,6 +490,7 @@
         globeGroup.userData.atmosphere = atmosphere;
         globeGroup.userData.atmosphereLight = atmosphereLight;
         globeGroup.userData.atmosphereLight2 = atmosphereLight2;
+        globeGroup.userData.innerGlow = innerGlow;
         
         // Enhanced lighting for better glow and highlights
         const ambientLight = new THREE.AmbientLight(0x333344, 0.5); // Subtle bluish ambient light
@@ -305,9 +532,9 @@
         camera.lookAt(0, 0, 0); // Ensure camera is looking at the center of the globe
         
         // Load land coordinates (simplified version)
-        const landPoints = [];
-        const landDots = new THREE.Group();
-        globeGroup.add(landDots);
+        window.landPoints = [];
+        window.landDots = new THREE.Group();
+        globeGroup.add(window.landDots);
         
         // Create land dots based on actual land/sea distribution
         function createLandPoints() {
@@ -466,7 +693,10 @@
         console.log(`Created ${landPoints.length} land points`);
         
         // Arcs between points
-        const arcs = [];
+        window.arcs = [];
+        // Create a group to hold all arcs for easier manipulation
+        window.arcsGroup = new THREE.Group();
+        globeGroup.add(window.arcsGroup);
         
         function createArc(startPoint, endPoint) {
             const startPos = startPoint.position.clone();
@@ -1515,6 +1745,731 @@
         
         // Start animation loop
         animate(0);
+        // FPS Counter
+        const fpsCounter = document.getElementById('fps-counter');
+        let frameCount = 0;
+        let lastFPSUpdate = performance.now();
+        let fps = 0;
+        
+        // Debug panel functionality
+        const debugToggle = document.getElementById('debug-toggle');
+        const debugPanel = document.getElementById('debug-panel');
+        
+        // Toggle debug panel visibility
+        debugToggle.addEventListener('click', () => {
+            if (debugPanel.style.display === 'block') {
+                debugPanel.style.display = 'none';
+                // Enable globe interaction again
+                document.body.classList.remove('debug-panel-active');
+            } else {
+                debugPanel.style.display = 'block';
+                // Disable globe interaction while debug panel is active
+                document.body.classList.add('debug-panel-active');
+                // Initialize controls with current config values
+                updateControlsFromConfig();
+            }
+        });
+        
+        // Initialize controls with config values
+        function updateControlsFromConfig() {
+            // Globe appearance
+            document.getElementById('globeRadius').value = CONFIG.globeRadius;
+            document.getElementById('globeSegments').value = CONFIG.globeSegments;
+            document.getElementById('showAtmosphere').checked = true; // Default to visible
+            document.getElementById('atmosphereOpacity').value = CONFIG.atmosphereOpacity;
+            document.getElementById('atmosphereGlow').value = CONFIG.atmosphereGlow;
+            
+            // Land points
+            document.getElementById('showLandPoints').checked = true; // Default to visible
+            document.getElementById('disableHover').checked = false; // Default to enabled
+            document.getElementById('numPoints').value = CONFIG.numPoints;
+            document.getElementById('dotSize').value = CONFIG.dotSize;
+            document.getElementById('dotOpacity').value = CONFIG.dotOpacity;
+            document.getElementById('hoverEffect').value = CONFIG.hoverEffect;
+            
+            // Arcs
+            document.getElementById('showArcs').checked = true; // Default to visible
+            document.getElementById('maxConcurrentArcs').value = CONFIG.maxConcurrentArcs;
+            document.getElementById('arcFrequency').value = CONFIG.arcFrequency;
+            document.getElementById('arcThickness').value = CONFIG.arcThickness;
+            document.getElementById('arcPointsCount').value = CONFIG.arcPointsCount;
+            
+            // Animation
+            document.getElementById('rotationSpeed').value = CONFIG.rotationSpeed;
+            document.getElementById('arcGrowDuration').value = CONFIG.arcGrowDuration;
+            document.getElementById('arcRetreatDuration').value = CONFIG.arcRetreatDuration;
+            
+            // Rendering
+            document.getElementById('useHighPerformanceMode').checked = CONFIG.useHighPerformanceMode;
+            document.getElementById('skipFrames').value = CONFIG.skipFrames;
+            document.getElementById('pixelRatio').value = window.devicePixelRatio > 1 ? 1 : 0.5;
+            document.getElementById('disableLights').checked = false;
+            document.getElementById('freezeAnimations').checked = false;
+            document.getElementById('disableRotation').checked = false;
+        }
+        
+        // Apply control changes to config and update visualization
+        function setupControlListeners() {
+            // Globe appearance
+            document.getElementById('globeRadius').addEventListener('input', (e) => {
+                CONFIG.globeRadius = parseFloat(e.target.value);
+                updateGlobeGeometry();
+            });
+            
+            document.getElementById('globeSegments').addEventListener('input', (e) => {
+                CONFIG.globeSegments = parseInt(e.target.value);
+                updateGlobeGeometry();
+            });
+            
+            document.getElementById('showAtmosphere').addEventListener('change', (e) => {
+                const isVisible = e.target.checked;
+                toggleAtmosphere(isVisible);
+            });
+            
+            document.getElementById('atmosphereOpacity').addEventListener('input', (e) => {
+                CONFIG.atmosphereOpacity = parseFloat(e.target.value);
+                updateAtmosphere();
+            });
+            
+            document.getElementById('atmosphereGlow').addEventListener('input', (e) => {
+                CONFIG.atmosphereGlow = parseFloat(e.target.value);
+                updateAtmosphere();
+            });
+            
+            // Land points
+            document.getElementById('showLandPoints').addEventListener('change', (e) => {
+                const isVisible = e.target.checked;
+                toggleLandPoints(isVisible);
+            });
+            
+            document.getElementById('disableHover').addEventListener('change', (e) => {
+                const disableHover = e.target.checked;
+                toggleHoverEffects(!disableHover);
+            });
+            
+            document.getElementById('numPoints').addEventListener('change', (e) => {
+                CONFIG.numPoints = parseInt(e.target.value);
+                regenerateLandPoints();
+            });
+            
+            document.getElementById('dotSize').addEventListener('input', (e) => {
+                CONFIG.dotSize = parseFloat(e.target.value);
+                updateLandPointsGeometry();
+            });
+            
+            document.getElementById('dotOpacity').addEventListener('input', (e) => {
+                CONFIG.dotOpacity = parseFloat(e.target.value);
+                updateLandPointsMaterial();
+            });
+            
+            document.getElementById('hoverEffect').addEventListener('input', (e) => {
+                CONFIG.hoverEffect = parseFloat(e.target.value);
+                // Effect will be applied on next hover
+            });
+            
+            // Arcs
+            document.getElementById('showArcs').addEventListener('change', (e) => {
+                const isVisible = e.target.checked;
+                toggleArcs(isVisible);
+            });
+            
+            document.getElementById('maxConcurrentArcs').addEventListener('input', (e) => {
+                CONFIG.maxConcurrentArcs = parseInt(e.target.value);
+                // Will affect future arc generation
+            });
+            
+            document.getElementById('arcFrequency').addEventListener('input', (e) => {
+                CONFIG.arcFrequency = parseFloat(e.target.value);
+                // Will affect future arc timing
+            });
+            
+            document.getElementById('arcThickness').addEventListener('input', (e) => {
+                CONFIG.arcThickness = parseFloat(e.target.value);
+                updateArcGeometry();
+            });
+            
+            document.getElementById('arcPointsCount').addEventListener('change', (e) => {
+                CONFIG.arcPointsCount = parseInt(e.target.value);
+                // Will affect future arc geometry
+            });
+            
+            // Animation
+            document.getElementById('rotationSpeed').addEventListener('input', (e) => {
+                CONFIG.rotationSpeed = parseFloat(e.target.value);
+                // Will affect animation speed
+            });
+            
+            document.getElementById('arcGrowDuration').addEventListener('input', (e) => {
+                CONFIG.arcGrowDuration = parseFloat(e.target.value);
+                // Will affect future arc animations
+            });
+            
+            document.getElementById('arcRetreatDuration').addEventListener('input', (e) => {
+                CONFIG.arcRetreatDuration = parseFloat(e.target.value);
+                // Will affect future arc animations
+            });
+            
+            // Rendering
+            document.getElementById('useHighPerformanceMode').addEventListener('change', (e) => {
+                CONFIG.useHighPerformanceMode = e.target.checked;
+                updateRendererSettings();
+            });
+            
+            document.getElementById('skipFrames').addEventListener('input', (e) => {
+                CONFIG.skipFrames = parseInt(e.target.value);
+                // Will affect frame skipping immediately
+            });
+            
+            document.getElementById('pixelRatio').addEventListener('input', (e) => {
+                const ratio = parseFloat(e.target.value);
+                setPixelRatio(ratio);
+            });
+            
+            document.getElementById('disableLights').addEventListener('change', (e) => {
+                const disableLights = e.target.checked;
+                toggleLights(!disableLights);
+            });
+            
+            document.getElementById('freezeAnimations').addEventListener('change', (e) => {
+                const freezeAnimations = e.target.checked;
+                toggleAnimations(!freezeAnimations);
+            });
+            
+            document.getElementById('disableRotation').addEventListener('change', (e) => {
+                const disableRotation = e.target.checked;
+                toggleRotation(!disableRotation);
+            });
+        }
+        
+        // Call to set up all control listeners
+        setupControlListeners();
+        
+        // Prevent interaction with the globe when using the debug controls
+        const debugControls = document.getElementById('debug-panel').querySelectorAll('input, button, select');
+        debugControls.forEach(control => {
+            // Prevent any pointer events from propagating when interacting with controls
+            control.addEventListener('pointerdown', e => {
+                e.stopPropagation();
+            });
+            
+            // For sliders, also handle specific events
+            if (control.type === 'range') {
+                control.addEventListener('input', e => {
+                    e.stopPropagation();
+                });
+                
+                // While dragging sliders, keep the body in debug-panel-active mode
+                control.addEventListener('pointerdown', () => {
+                    document.body.classList.add('debug-panel-active');
+                });
+                
+                // When done dragging, we'll keep the debug-panel-active class
+                // since the panel is still open
+            }
+        });
+        
+        // Update globe geometry when radius or segments change
+        function updateGlobeGeometry() {
+            const newGlobeGeometry = new THREE.SphereGeometry(
+                CONFIG.globeRadius,
+                CONFIG.globeSegments,
+                CONFIG.globeSegments
+            );
+            
+            globe.geometry.dispose();
+            globe.geometry = newGlobeGeometry;
+            
+            // Update related geometries
+            updateAtmosphereGeometry();
+        }
+        
+        // Update atmosphere geometry and properties
+        function updateAtmosphereGeometry() {
+            const atmosphereSize = CONFIG.globeRadius * CONFIG.atmosphereSize * 1.05;
+            const newAtmosphereGeometry = new THREE.SphereGeometry(
+                atmosphereSize,
+                CONFIG.globeSegments,
+                CONFIG.globeSegments
+            );
+            
+            globeGroup.userData.atmosphere.geometry.dispose();
+            globeGroup.userData.atmosphere.geometry = newAtmosphereGeometry;
+        }
+        
+        // Update atmosphere material properties
+        function updateAtmosphere() {
+            if (globeGroup.userData.atmosphere && globeGroup.userData.atmosphere.material) {
+                globeGroup.userData.atmosphere.material.uniforms.opacity.value = CONFIG.atmosphereOpacity * 1.5;
+            }
+            
+            if (globeGroup.userData.atmosphereLight) {
+                globeGroup.userData.atmosphereLight.intensity = CONFIG.atmosphereGlow * 1.5;
+            }
+            
+            if (globeGroup.userData.atmosphereLight2) {
+                globeGroup.userData.atmosphereLight2.intensity = CONFIG.atmosphereGlow * 0.8;
+            }
+        }
+        
+        // Update land points geometry
+        function updateLandPointsGeometry() {
+            // First, check if we have land points
+            if (window.landDots && window.landDots.userData && window.landDots.userData.instancedDots) {
+                const instancedDots = window.landDots.userData.instancedDots;
+                // For instanced meshes, we update the geometry once
+                if (instancedDots.geometry) {
+                    // Dispose old geometry
+                    instancedDots.geometry.dispose();
+                    
+                    // Create new geometry with updated size
+                    instancedDots.geometry = new THREE.SphereGeometry(
+                        CONFIG.dotSize,
+                        CONFIG.dotSegments,
+                        CONFIG.dotSegments
+                    );
+                }
+            }
+            
+            // Also handle any non-instanced points if they exist
+            if (window.landPoints && window.landPoints.length > 0) {
+                const newDotGeometry = new THREE.SphereGeometry(
+                    CONFIG.dotSize,
+                    CONFIG.dotSegments,
+                    CONFIG.dotSegments
+                );
+                
+                // Update all individual land point geometries if any
+                window.landPoints.forEach(dot => {
+                    if (dot.geometry) {
+                        dot.geometry.dispose();
+                        dot.geometry = newDotGeometry;
+                    }
+                });
+            }
+        }
+        
+        // Update land points material
+        function updateLandPointsMaterial() {
+            // Update instanced mesh material if it exists
+            if (window.landDots && window.landDots.userData && window.landDots.userData.instancedDots) {
+                const instancedDots = window.landDots.userData.instancedDots;
+                if (instancedDots.material) {
+                    instancedDots.material.opacity = CONFIG.dotOpacity;
+                }
+            }
+            
+            // Also update any individual land points if they exist
+            if (window.landPoints && window.landPoints.length > 0) {
+                window.landPoints.forEach(dot => {
+                    if (dot.material) {
+                        dot.material.opacity = CONFIG.dotOpacity;
+                    }
+                });
+            }
+        }
+        
+        // Regenerate all land points - more expensive operation
+        function regenerateLandPoints() {
+            // Store reference to regenerate function if it exists
+            if (typeof createLandPoints === 'function') {
+                // Clean up existing land dot instances
+                if (window.landDots) {
+                    // Clean up instanced mesh if it exists
+                    if (window.landDots.userData && window.landDots.userData.instancedDots) {
+                        const instancedDots = window.landDots.userData.instancedDots;
+                        if (instancedDots.geometry) instancedDots.geometry.dispose();
+                        if (instancedDots.material) instancedDots.material.dispose();
+                        window.landDots.remove(instancedDots);
+                    }
+                    
+                    // Clean up any other children
+                    while (window.landDots.children.length > 0) {
+                        const child = window.landDots.children[0];
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) child.material.dispose();
+                        window.landDots.remove(child);
+                    }
+                    
+                    // Reset userData
+                    window.landDots.userData = {};
+                }
+                
+                // Reset the landPoints array
+                window.landPoints = [];
+                
+                // Regenerate land points with new config
+                createLandPoints();
+            }
+        }
+        
+        // Make the regeneration functions available globally
+        window.regenerateLandGeometry = updateLandPointsGeometry;
+        window.updateLandMaterial = updateLandPointsMaterial;
+        window.regenerateLandPoints = regenerateLandPoints;
+        
+        // Update arc geometry settings
+        function updateArcGeometry() {
+            // Update existing arc geometries with new thickness
+            if (window.arcsGroup && window.arcsGroup.children && window.arcsGroup.children.length > 0) {
+                // For existing arcs, update their thickness
+                window.arcsGroup.children.forEach(arc => {
+                    if (arc.children && arc.children.length > 0) {
+                        // For each tube in the arc, update geometry if possible
+                        arc.children.forEach(tube => {
+                            if (tube.geometry && tube.userData && tube.userData.pathPoints) {
+                                // Recreate tube with new thickness
+                                const curvePoints = tube.userData.pathPoints;
+                                const curve = new THREE.CatmullRomCurve3(curvePoints);
+                                
+                                // Dispose old geometry
+                                tube.geometry.dispose();
+                                
+                                // Create new tube geometry with updated thickness
+                                tube.geometry = new THREE.TubeGeometry(
+                                    curve,
+                                    CONFIG.arcTubeSegments,
+                                    CONFIG.arcThickness,
+                                    CONFIG.arcRadialSegments,
+                                    false
+                                );
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // Also handle arc array format if it exists
+            if (window.arcs && window.arcs.length > 0) {
+                window.arcs.forEach(arc => {
+                    if (arc.tubeMesh && arc.tubeMesh.geometry && arc.points) {
+                        // Recreate tube with new thickness
+                        const curve = new THREE.CatmullRomCurve3(arc.points);
+                        
+                        // Dispose old geometry
+                        arc.tubeMesh.geometry.dispose();
+                        
+                        // Create new tube geometry with updated thickness
+                        arc.tubeMesh.geometry = new THREE.TubeGeometry(
+                            curve,
+                            CONFIG.arcTubeSegments,
+                            CONFIG.arcThickness,
+                            CONFIG.arcRadialSegments,
+                            false
+                        );
+                    }
+                });
+            }
+        }
+        
+        // Make the arc update function available globally
+        window.updateArcGeometries = updateArcGeometry;
+        
+        // Toggle atmosphere visibility
+        function toggleAtmosphere(isVisible) {
+            if (globeGroup && globeGroup.userData) {
+                // Toggle atmosphere mesh
+                if (globeGroup.userData.atmosphere) {
+                    globeGroup.userData.atmosphere.visible = isVisible;
+                }
+                
+                // Toggle atmosphere lights
+                if (globeGroup.userData.atmosphereLight) {
+                    globeGroup.userData.atmosphereLight.intensity = isVisible ? CONFIG.atmosphereGlow * 1.5 : 0;
+                }
+                
+                if (globeGroup.userData.atmosphereLight2) {
+                    globeGroup.userData.atmosphereLight2.intensity = isVisible ? CONFIG.atmosphereGlow * 0.8 : 0;
+                }
+                
+                // Toggle inner glow if it exists
+                if (globeGroup.userData.innerGlow) {
+                    globeGroup.userData.innerGlow.visible = isVisible;
+                } else {
+                    // Find inner glow by traversing children
+                    globeGroup.children.forEach(child => {
+                        if (child.material && child.material.type === 'MeshBasicMaterial' && 
+                            child.material.side === THREE.BackSide) {
+                            globeGroup.userData.innerGlow = child;
+                            child.visible = isVisible;
+                        }
+                    });
+                }
+            }
+        }
+        
+        // Toggle arcs visibility
+        function toggleArcs(isVisible) {
+            // Toggle all existing arcs
+            if (window.arcsGroup) {
+                window.arcsGroup.visible = isVisible;
+            }
+            
+            // Also toggle arc generation
+            window.arcsEnabled = isVisible;
+            
+            // If no dedicated property exists to control arc generation,
+            // store the original value and set to very low value to effectively disable
+            if (!isVisible) {
+                // Store original frequency if not already stored
+                if (window.originalArcFrequency === undefined) {
+                    window.originalArcFrequency = CONFIG.arcFrequency;
+                }
+                // Set to very high value to effectively disable new arcs
+                CONFIG.arcFrequency = 1000;
+            } else if (window.originalArcFrequency !== undefined) {
+                // Restore original frequency
+                CONFIG.arcFrequency = window.originalArcFrequency;
+            }
+        }
+        
+        // Toggle land points visibility
+        function toggleLandPoints(isVisible) {
+            if (window.landDots) {
+                window.landDots.visible = isVisible;
+            }
+        }
+        
+        // Toggle hover effects
+        function toggleHoverEffects(enabled) {
+            // Store the state globally
+            window.hoverEffectsEnabled = enabled;
+            
+            // If your code uses event listeners for hover effects,
+            // you may need to add/remove them here or check this flag in those handlers
+        }
+        
+        // Set pixel ratio
+        function setPixelRatio(ratio) {
+            if (renderer) {
+                renderer.setPixelRatio(ratio);
+            }
+        }
+        
+        // Toggle lights
+        function toggleLights(enabled) {
+            // Store original intensities if not already stored
+            if (!window.originalLightIntensities && enabled === false) {
+                window.originalLightIntensities = {};
+                
+                // Store ambient light
+                if (ambientLight) {
+                    window.originalLightIntensities.ambient = ambientLight.intensity;
+                }
+                
+                // Store directional light
+                if (directionalLight) {
+                    window.originalLightIntensities.directional = directionalLight.intensity;
+                }
+                
+                // Store back light
+                if (backLight) {
+                    window.originalLightIntensities.back = backLight.intensity;
+                }
+                
+                // Store secondary back light
+                if (secondBackLight) {
+                    window.originalLightIntensities.secondBack = secondBackLight.intensity;
+                }
+                
+                // Store third back light
+                if (thirdBackLight) {
+                    window.originalLightIntensities.thirdBack = thirdBackLight.intensity;
+                }
+                
+                // Store rim light
+                if (rimLight) {
+                    window.originalLightIntensities.rim = rimLight.intensity;
+                }
+                
+                // Store fill light
+                if (fillLight) {
+                    window.originalLightIntensities.fill = fillLight.intensity;
+                }
+            }
+            
+            // Set all light intensities
+            if (enabled && window.originalLightIntensities) {
+                // Restore original intensities
+                if (ambientLight && window.originalLightIntensities.ambient !== undefined) {
+                    ambientLight.intensity = window.originalLightIntensities.ambient;
+                }
+                
+                if (directionalLight && window.originalLightIntensities.directional !== undefined) {
+                    directionalLight.intensity = window.originalLightIntensities.directional;
+                }
+                
+                if (backLight && window.originalLightIntensities.back !== undefined) {
+                    backLight.intensity = window.originalLightIntensities.back;
+                }
+                
+                if (secondBackLight && window.originalLightIntensities.secondBack !== undefined) {
+                    secondBackLight.intensity = window.originalLightIntensities.secondBack;
+                }
+                
+                if (thirdBackLight && window.originalLightIntensities.thirdBack !== undefined) {
+                    thirdBackLight.intensity = window.originalLightIntensities.thirdBack;
+                }
+                
+                if (rimLight && window.originalLightIntensities.rim !== undefined) {
+                    rimLight.intensity = window.originalLightIntensities.rim;
+                }
+                
+                if (fillLight && window.originalLightIntensities.fill !== undefined) {
+                    fillLight.intensity = window.originalLightIntensities.fill;
+                }
+            } else if (!enabled) {
+                // Set all lights to 0 intensity
+                if (ambientLight) ambientLight.intensity = 0;
+                if (directionalLight) directionalLight.intensity = 0;
+                if (backLight) backLight.intensity = 0;
+                if (secondBackLight) secondBackLight.intensity = 0;
+                if (thirdBackLight) thirdBackLight.intensity = 0;
+                if (rimLight) rimLight.intensity = 0;
+                if (fillLight) fillLight.intensity = 0;
+            }
+        }
+        
+        // Toggle animations
+        function toggleAnimations(enabled) {
+            window.animationsEnabled = enabled;
+            
+            // Your animation code should check this flag
+            // This will depend on how animations are implemented
+        }
+        
+        // Toggle globe rotation
+        function toggleRotation(enabled) {
+            window.rotationEnabled = enabled;
+            
+            // If rotation is disabled, store the current speed and set to 0
+            if (!enabled) {
+                if (window.originalRotationSpeed === undefined) {
+                    window.originalRotationSpeed = CONFIG.rotationSpeed;
+                }
+                CONFIG.rotationSpeed = 0;
+            } else if (window.originalRotationSpeed !== undefined) {
+                // Restore original rotation speed
+                CONFIG.rotationSpeed = window.originalRotationSpeed;
+            }
+        }
+        
+        // Update renderer settings for performance mode
+        function updateRendererSettings() {
+            renderer.setPixelRatio(CONFIG.useHighPerformanceMode ? 1 : 
+                              (window.devicePixelRatio > 2 ? 1.5 : window.devicePixelRatio));
+                              
+            renderer.antialias = !CONFIG.useHighPerformanceMode;
+            renderer.compile(scene, camera);
+        }
+        
+        // Enhanced FPS counter with detailed metrics and uncapped mode
+        let lastFrameTime = performance.now();
+        let frameCounter = 0;
+        let frameTimes = [];
+        let renderTimes = [];
+        let isUncapped = false;
+        let showDetailedMetrics = false;
+        let currentFps = 0;
+        let potentialFps = 0;
+        let avgRenderTime = 0;
+        let lastRenderStart = 0;
+        
+        // Set initial state for performance toggles
+        window.rotationEnabled = true;
+        window.animationsEnabled = true;
+        window.hoverEffectsEnabled = true;
+        
+        // Uncap FPS by using setTimeout instead of requestAnimationFrame
+        // Store original requestAnimationFrame for later restoration
+        const originalRequestAnimationFrame = window.requestAnimationFrame;
+        const originalCancelAnimationFrame = window.cancelAnimationFrame;
+        
+        // Function to toggle between capped and uncapped FPS
+        function toggleUncappedFps(enabled) {
+            isUncapped = enabled;
+            
+            if (enabled) {
+                // Replace with setTimeout-based implementation for uncapped performance
+                window.requestAnimationFrame = function(callback) {
+                    return setTimeout(() => {
+                        callback(performance.now());
+                    }, 0);
+                };
+                
+                window.cancelAnimationFrame = function(id) {
+                    clearTimeout(id);
+                };
+            } else {
+                // Restore original browser implementation (capped to refresh rate)
+                window.requestAnimationFrame = originalRequestAnimationFrame;
+                window.cancelAnimationFrame = originalCancelAnimationFrame;
+            }
+        }
+        
+        // Set up listeners for the uncapped FPS toggle
+        document.getElementById('uncapFps').addEventListener('change', function(e) {
+            toggleUncappedFps(e.target.checked);
+        });
+        
+        // Set up listeners for detailed metrics display
+        document.getElementById('showDetailedMetrics').addEventListener('change', function(e) {
+            showDetailedMetrics = e.target.checked;
+        });
+        
+        // Function to update FPS display with improved metrics
+        function updateFPS() {
+            const now = performance.now();
+            const frameTime = now - lastFrameTime;
+            lastFrameTime = now;
+            
+            // Calculate render time from last frame
+            if (lastRenderStart > 0) {
+                const renderTime = now - lastRenderStart;
+                if (renderTime > 0 && renderTime < 1000) {
+                    renderTimes.push(renderTime);
+                    if (renderTimes.length > 60) renderTimes.shift();
+                    avgRenderTime = renderTimes.reduce((a, b) => a + b, 0) / renderTimes.length;
+                    
+                    // Calculate potential FPS (uncapped) based on render time
+                    potentialFps = Math.round(1000 / avgRenderTime);
+                }
+            }
+            
+            // Record render start time for next frame
+            lastRenderStart = now;
+            
+            // Track realistic frame times for FPS calculation
+            if (frameTime > 0 && frameTime < 1000) {
+                frameTimes.push(frameTime);
+                if (frameTimes.length > 60) frameTimes.shift();
+            }
+            
+            frameCounter++;
+            
+            // Update display every few frames
+            if (frameCounter >= 10) {
+                frameCounter = 0;
+                
+                // Calculate average FPS from frame times
+                if (frameTimes.length > 0) {
+                    const avgFrameTime = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+                    currentFps = Math.round(1000 / avgFrameTime);
+                    
+                    // Update FPS counter with appropriate information
+                    if (showDetailedMetrics) {
+                        fpsCounter.textContent = `FPS: ${currentFps} | Potential: ${potentialFps} | Render: ${avgRenderTime.toFixed(2)}ms`;
+                    } else {
+                        fpsCounter.textContent = `FPS: ${currentFps}${isUncapped ? ' (Uncapped)' : ''}`;
+                    }
+                }
+            }
+            
+            // Continue measuring
+            requestAnimationFrame(updateFPS);
+        }
+        
+        // Start FPS measurement
+        requestAnimationFrame(updateFPS);
     </script>
 </body>
 </html>
